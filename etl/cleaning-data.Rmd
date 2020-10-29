@@ -1,0 +1,77 @@
+---
+title: "Cleaning Data"
+output:
+  html_document:
+    df_print: paged
+---
+
+-- INITIAL DATA FROM THE KAISER HEALTH NEWS STORY --
+
+Loading in data from the KHN story.  The data set includes data from the 2018 5-year ACS including poverty rate, estimated number of homes with inadequate plumbing, inadequate kitchens and overcrowding, as well as percent of those qualities and margins of error for all counties in the country. (Downloaded from KHN story here: https://khn.org/news/millions-stuck-at-home-with-no-plumbing-kitchen-or-space-to-stay-safe/)
+```{r}
+county_data <- rio::import("/Users/korie/Documents/Fall 2020/MEJO390/final-project-korie/data/KHN-county-housing-data.csv")
+```
+
+Since the data is from all counties in the U.S. and my story only focuses on North Carolina, I want to filter the data to only include N.C. counties. 
+```{r}
+library(dplyr)
+nc_county_data <- county_data %>%
+  filter(state_code=="NC")
+```
+
+
+-- PULLING IN ADDITIONAL DATA FROM THE 2018 AND 2013 5-YEAR ACS --
+
+Loading in NC county-level Table B25048 from the 2018 5-year ACS (downloaded from data.census.gov) and cleaning column names. 
+```{r}
+setwd("/Users/korie/Documents/Fall 2020/MEJO390/final-project-korie/")
+county_plumbing_2018 <- "data/ACSDT5Y2018.B25048_2020-10-11T194219 2/ACSDT5Y2018.B25048_data_with_overlays_2020-10-11T194213.csv"
+library(tidyverse)
+county_plumbing_2018 <- read_csv(county_plumbing_2018, skip=1)
+colnames(county_plumbing_2018)
+names(county_plumbing_2018)[names(county_plumbing_2018) == "Estimate!!Total"] <- "total_occupied_homes_2018"
+names(county_plumbing_2018)[names(county_plumbing_2018) == "Margin of Error!!Total"] <- "moe_total_occupied_homes_2018"
+names(county_plumbing_2018)[names(county_plumbing_2018) == "Estimate!!Total!!Complete plumbing facilities"] <- "est_complete_plumbing_2018"
+names(county_plumbing_2018)[names(county_plumbing_2018) == "Margin of Error!!Total!!Complete plumbing facilities"] <- "moe_complete_plumbing_estimate_2018"
+names(county_plumbing_2018)[names(county_plumbing_2018) == "Estimate!!Total!!Lacking complete plumbing facilities"] <- "est_lacking_complete_plumbing_2018"
+names(county_plumbing_2018)[names(county_plumbing_2018) == "Margin of Error!!Total!!Lacking complete plumbing facilities"] <- "moe_lacking_complete_plumbing_2018" 
+```
+
+Loading in NC county-level Table B25048 from the 2013 5-year ACS (downloaded from data.census.gov) and cleaning column names. 
+```{r}
+setwd("/Users/korie/Documents/Fall 2020/MEJO390/final-project-korie/")
+county_plumbing_2013 <- "data/ACSDT5Y2013.B25048_2020-10-11T194043/ACSDT5Y2013.B25048_data_with_overlays_2020-10-11T194011.csv"
+county_plumbing_2013 <- read_csv(county_plumbing_2013, skip=1)
+colnames(county_plumbing_2013)
+names(county_plumbing_2013)[names(county_plumbing_2013) == "Estimate!!Total"] <- "total_occupied_homes_2013"
+names(county_plumbing_2013)[names(county_plumbing_2013) == "Margin of Error!!Total"] <- "moe_total_occupied_homes_2013"
+names(county_plumbing_2013)[names(county_plumbing_2013) == "Estimate!!Total!!Complete plumbing facilities"] <- "est_complete_plumbing_2013"
+names(county_plumbing_2013)[names(county_plumbing_2013) == "Margin of Error!!Total!!Complete plumbing facilities"] <- "moe_complete_plumbing_estimate_2013"
+names(county_plumbing_2013)[names(county_plumbing_2013) == "Estimate!!Total!!Lacking complete plumbing facilities"] <- "est_lacking_complete_plumbing_2013"
+names(county_plumbing_2013)[names(county_plumbing_2013) == "Margin of Error!!Total!!Lacking complete plumbing facilities"] <- "moe_lacking_complete_plumbing_2013"
+```
+
+Joining the 2018 and 2013 county-level data in order to allow for change over time and percent change formulas to be used.
+```{r}
+library(dplyr)
+plumbing_2018_2013 <- left_join(county_plumbing_2018, county_plumbing_2013, by="Geographic Area Name")
+```
+
+Loading in NC tract-level Table B25048 from the 2018 5-year ACS (downloaded from data.census.gov) and cleaning column names. 
+```{r}
+setwd("/Users/korie/Documents/Fall 2020/MEJO390/final-project-korie/")
+tract_plumbing_2013 <- "data/productDownload_2020-10-29T183036/ACSDT5Y2013.B25048_data_with_overlays_2020-10-29T183020.csv"
+tract_plumbing_2013 <- read_csv(tract_plumbing_2013, skip=1)
+colnames(county_plumbing_2013)
+names(tract_plumbing_2013)[names(tract_plumbing_2013) == "Estimate!!Total"] <- "total_occupied_homes_2013"
+names(tract_plumbing_2013)[names(tract_plumbing_2013) == "Margin of Error!!Total"] <- "moe_total_occupied_homes_2013"
+names(tract_plumbing_2013)[names(tract_plumbing_2013) == "Estimate!!Total!!Complete plumbing facilities"] <- "est_complete_plumbing_2013"
+names(tract_plumbing_2013)[names(tract_plumbing_2013) == "Margin of Error!!Total!!Complete plumbing facilities"] <- "moe_complete_plumbing_estimate_2013"
+names(tract_plumbing_2013)[names(tract_plumbing_2013) == "Estimate!!Total!!Lacking complete plumbing facilities"] <- "est_lacking_complete_plumbing_2013"
+names(tract_plumbing_2013)[names(tract_plumbing_2013) == "Margin of Error!!Total!!Lacking complete plumbing facilities"] <- "moe_lacking_complete_plumbing_2013"
+```
+
+
+
+
+
