@@ -1,0 +1,129 @@
+---
+title: "Preliminary Analysis"
+output:
+  html_document:
+    df_print: paged
+---
+
+--PRELIMINARY ANALYSIS: STATEWIDE DESCRIPTIVE STATISTICS, ETC. --
+
+Finding the total number of homes in NC with inadequate plumbing, the total number of occupied homes in the state, and the percent of homes with inadequate plumbing.
+```{r}
+county_data <- rio::import("/Users/korie/Documents/Fall 2020/MEJO390/final-project-korie/data/KHN-county-housing-data.csv")
+
+library(dplyr)
+nc_county_data <- county_data %>%
+  filter(state_code=="NC")
+
+total_plumbing = nc_county_data$plumbing_inadequate_est
+sum(total_plumbing)
+
+total_homes = nc_county_data$occupied_housing_universe
+sum(total_homes)
+
+(sum(total_plumbing)/sum(total_homes))
+```
+12,544 homes in NC lack complete plumbing -- roughly equal to 0.3% of homes.
+
+Finding the total number of homes in NC with inadequate kitchens and percent.
+```{r}
+total_kitchens = nc_county_data$kitchen_inadequate_est
+sum(total_kitchens)
+
+(sum(total_kitchens)/sum(total_homes))
+```
+22,905 homes in NC lack complete kitchens -- roughly 0.6% of homes.
+
+Seeing where NC ranks with the above totals.
+```{r}
+county_data %>%
+  group_by(state_code) %>%
+  summarise("plumbing"=sum(plumbing_inadequate_est)) %>%
+  arrange(desc(plumbing))
+```
+NC has the 11th highest number of homes with inadequate plumbing in the U.S. Proportional to NC's population rank.
+
+Seeing where NC ranks with percent of occupied homes with inadequate plumbing.
+```{r}
+county_data %>%
+  group_by(state_code) %>%
+  summarise("plumbing"=sum(plumbing_inadequate_est), "occupied"=sum(occupied_housing_universe)) %>%
+  mutate(pct_plumbing = plumbing/occupied) %>%
+  arrange(desc(pct_plumbing))
+```
+NC ranks 39th.
+
+
+Now that we've looked at how NC ranks in the US, I want to get a better idea of which counties in the state are experiencing higher rates of inadequate plumbing.
+
+Sorting NC data in descending order by number of houses with inadequate plumbing:
+```{r}
+nc_county_data %>%
+  arrange(desc(plumbing_inadequate_est))
+```
+Many of the highest ranked states make sense, as they have some of the highest populations in the state. With a higher population, there are more homes, which means that more homes likely lack complete plumbing.
+
+To get a better idea of the counties where this is an issue that affects a bigger proportion of the population, I want to sort by the percentage of homes with inadequate plumbing, which is included in the data from KHN.
+```{r}
+nc_county_data %>%
+  arrange(desc(plumbing_inadequate_pct))
+```
+This gives me a somewhat clearer idea of which counties have higher rates of inadequate plumbing, but it is important to note that the margins of error are pretty high for most counties. For example, in Clay County, the estimated number of homes with inadequate plumbing is 88, but the margin of error is 92, which means that, based on what the survey shows, there actually could be NO homes with inadequate plumbing there.
+
+Finding the median and mean percent of homes with inadequate plumbing so that outliers/homes with significantly higher or lower percentages can be found.
+```{r}
+median=nc_county_data$plumbing_inadequate_pct
+median(median)
+
+avg=nc_county_data$plumbing_inadequate_pct
+mean(avg)
+```
+
+Filtering the data to see counties only with higher percentages than the mean.
+```{r}
+nc_county_data %>%
+  filter(plumbing_inadequate_pct >= mean(avg)) %>%
+  arrange(desc(plumbing_inadequate_pct))
+```
+Graham County has a significantly high pct, close to 2.4% (though the raw number and MOE might make this less interesting).
+
+Filtering the data to see counties only with lower percentages than the mean.
+```{r}
+nc_county_data %>%
+  filter(plumbing_inadequate_pct <= mean(avg)) %>%
+  arrange((plumbing_inadequate_pct))
+```
+I'm surprised that Hyde and Tyrell Counties, which are in Eastern North Carolina, and are -- at least I think -- among the poorer counties in the state, and have 0 homes estimated with inadequate plumbing. This makes me wonder if there is any correlation between poverty rate/household income and the number of homes with inadequate plumbing.
+
+Running a statistical analysis to see if there is a relationship between poverty rate (included in the KHN data) and estimated homes with inadequate plumbing.
+```{r}
+fit <- lm(plumbing_inadequate_est ~ poverty_rate, data = nc_county_data)
+summary(fit)
+```
+p-value = .009 -- statistically significant relationship between poverty rate and the estimated number of homes with inadequate plumbing (need some more help interpreting this, but I think this is a good finding?)
+
+adjusted r-squared = .057 -- poverty rate explains about 5.7% of the estimated number of homes with inadequate plumbing...would it be different looking at the percent of homes?
+```{r}
+fit2 <- lm(plumbing_inadequate_pct ~ poverty_rate, data = nc_county_data)
+summary(fit2)
+```
+p-value=.36 -- not statistically significant
+adjusted r-squared: -.15 -- poverty rate does not explain the percent of homes with inadequate plumbing.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
