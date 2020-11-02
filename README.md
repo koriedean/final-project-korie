@@ -1,28 +1,30 @@
-# New Project
+# MEJO390 Final Project - Extreme Housing Conditions in N.C.
 
-TK: short project description
+This story analyzes the rates of extreme housing conditions (inadequate plumbing/kitchen facilities and overcrowding) in North Carolina using data from Kaiser Health News and county- and tract-level data from the American Community Survey (2018 5-year and 2013 5-year).
 
-*Created by Firstname Lastname (<>)*
-
-*Reporter: Firstname Lastname (<>)*
+*Created and reported by Korie Dean*
 
 ## Project goal
 
-*TK: Briefly describe this project*
+The goal of this project was to localize nationwide data on inadequate plumbing.
 
 ## Project notes
 
 ### Staff involved
 
-*TK: List people & contact info for people involved in the project*
+Korie Dean: korie@live.unc.edu
 
 [Responsibility matrix](url-to-responsibility matrix)
 
 [HIRUFF Q&A](url-to-hiruff)
 
 ### Data sources
-
-*TK: List access info & contact info for data sources used in the project*
+Data is from:
+  Kaiser Health News story: https://khn.org/news/millions-stuck-at-home-with-no-plumbing-kitchen-or-space-to-stay-safe/
+  2018 5-year American Community Survey - Table B25048, NC county-level
+  2018 5-year American Community Survey - Table B25048, NC tract-level
+  2013 5-year American Community Survey - Table B25048, NC county-level
+  2013 5-year American Community Survey - Table B25048, NC tract-level
 
 ## Technical
 
@@ -37,8 +39,6 @@ After cloning the git repo:
 `datakit data pull` to rerieve the data files.
 
 Open `new-project.Rproj` in RStudio.
-
-*TK: For more complex or unusual projects additional directions follow*
 
 ## Data notes
 
