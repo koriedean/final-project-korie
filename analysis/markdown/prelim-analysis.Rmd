@@ -112,6 +112,39 @@ adjusted r-squared: -.15 -- poverty rate does not explain the percent of homes w
 
 
 
+-- RURAL / URBAN ANALYSIS --
+
+Creating data frame with plumbing data and rural/urban designation to determine raw number and percent of homes with inadequate plumbing in each.
+```{r}
+nc_plumbing_county_2018 <- getCensus(name="acs/acs5", vintage=2018, vars=c("NAME", "B25048_003E"), region="county:*", regionin="state:37")
+
+setwd("/Users/korie/Documents/Fall 2020/MEJO390/final-project-korie/")
+library(tigris)
+options(tigris_class="sf")
+nc_counties <- counties("NC", cb=T)
+
+rural_urban <- read_csv("data/rural-urban.csv", skip=5)
+rural_urban <- rural_urban %>%
+  select(COUNTYNAME, URBAN_RURAL)
+
+nc_rural_urban <- left_join(nc_counties, rural_urban, by=c("NAME"="COUNTYNAME"))
+
+rural_urban_plumbing <- left_join(nc_plumbing_county_2018, nc_rural_urban, by=c("county"="COUNTYFP")) 
+names(rural_urban_plumbing)[names(rural_urban_plumbing) == "NAME.x"] <- "county_name"
+names(rural_urban_plumbing)[names(rural_urban_plumbing) == "B25048_003E"] <- "est_inadequate_plumbing"
+
+rural_urban_plumbing %>%
+  select(county_name, est_inadequate_plumbing, URBAN_RURAL)
+```
+
+Analyzing inadequate plumbing by urban/rural designation.
+```{r}
+rural_urban_plumbing %>%
+  group_by(URBAN_RURAL) %>%
+  summarise(total_plumbing = sum(est_inadequate_plumbing),
+            urban_rural_total = n())
+```
+
 
 
 

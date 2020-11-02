@@ -1,0 +1,105 @@
+---
+title: "Visualizations"
+output: html_notebook
+---
+
+Loading libraries.
+```{r}
+library(tidycensus)
+library(censusapi)
+```
+
+Loading Census API key.
+```{r}
+Sys.setenv(CENSUS_KEY="f8926d2beb514da70fdcd1abdac3eab3c261b34a")
+readRenviron("~/.Renviron")
+Sys.getenv("CENSUS_KEY")
+```
+
+Pulling NC plumbing data directly from Census.
+```{r}
+nc_plumbing_county_2018 <- getCensus(name="acs/acs5", vintage=2018, vars=c("NAME", "B25048_003E"), region="county:*", regionin="state:37")
+nc_plumbing_county_2013 <- getCensus(name="acs/acs5", vintage=2013, vars=c("NAME", "B25048_003E"), region="county:*", regionin="state:37")
+nc_plumbing_tract_2018 <- getCensus(name="acs/acs5", vintage=2018, vars=c("NAME", "B25048_003E"), region="tract:*", regionin="state:37")
+nc_plumbing_tract_2013 <- getCensus(name="acs/acs5", vintage=2018, vars=c("NAME", "B25048_003E"), region="tract:*", regionin="state:37")
+```
+
+Joining 2018 county data with NC shapefile in order to map.
+```{r}
+library(tigris)
+options(tigris_class="sf")
+nc_counties <- counties("NC", cb=T)
+viz_county_nc_plumbing_2018 <- left_join(nc_counties, nc_plumbing_county_2018, by=c("COUNTYFP" = "county")) 
+```
+
+Mapping inadequate plumbing by county for 2018.
+```{r}
+library(ggplot2)
+ggplot(viz_county_nc_plumbing_2018) +
+  geom_sf(aes(fill=B25048_003E), color="white") +
+  theme_void() +
+  theme(panel.grid.major=element_line(colour="transparent")) +
+  scale_fill_distiller(palette="Blues", direction=1, name="Number of homes") +
+  ggtitle("Homes lacking complete plumbing facilities in N.C.") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(caption = "Source: U.S. Census/ACS5 2018")
+```
+
+Joining 2018 tract data with NC shapefile in order to map.
+```{r}
+library(tigris)
+options(tigris_class="sf")
+nc_tracts <- tracts("NC", cb=T)
+viz_nc_tract_plumbing_2018 <- left_join(nc_tracts, nc_plumbing_tract_2018, by=c("TRACTCE" = "tract")) 
+```
+
+Mapping inadequate plumbing by tract for 2018.
+```{r}
+library(ggplot2)
+ggplot(viz_nc_tract_plumbing_2018) +
+  geom_sf(aes(fill=B25048_003E), color="white") +
+  theme_void() +
+  theme(panel.grid.major=element_line(colour="transparent")) +
+  scale_fill_distiller(palette="Blues", direction=1, name="Number of homes") +
+  ggtitle("Homes lacking complete plumbing facilities in N.C.") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  labs(caption = "Source: U.S. Census/ACS5 2018")
+```
+
+Joining 2018 and 2013 county files to map change over time.
+```{r}
+county_plumbing_change <- left_join(nc_plumbing_county_2018, nc_plumbing_county_2013, by=c("county" = "county"))
+names(county_plumbing_change)[names(county_plumbing_change) == "B25048_003E.x"] <- "est_inadequate_plumbing_2018"
+names(county_plumbing_change)[names(county_plumbing_change) == "B25048_003E.y"] <- "est_inadequate_plumbing_2013"
+names(county_plumbing_change)[names(county_plumbing_change) == "state.x"] <- "state"
+names(county_plumbing_change)[names(county_plumbing_change) == "NAME.x"] <- "county_name"
+county_plumbing_change <- county_plumbing_change %>%
+  select("state", "county", "county_name", "est_inadequate_plumbing_2018", "est_inadequate_plumbing_2013") %>%
+  mutate(change = est_inadequate_plumbing_2018 - est_inadequate_plumbing_2013,
+         change_category = case_when(change >0 ~ "increase",
+                                    change <0 ~ "decrease",
+                                    TRUE ~ "same"))
+```
+
+Joining county_plumbing_change with NC shapefile to create visualization.
+```{r}
+plumbing_change_with_shape <- left_join(nc, county_plumbing_change, by=c("COUNTYFP"="county"))
+```
+
+Mapping. 
+```{r}
+library(viridis)
+library(ggplot2)
+ggplot(plumbing_change_with_shape) +
+  geom_sf(aes(fill=change_category), color="white") +
+    theme_void() +
+   theme(panel.grid.major=element_line(colour="transparent")) +
+  ggtitle("Change in number of homes with inadequate plumbing, 2013 to 2018") +
+   theme(plot.title = element_text(hjust = 1)) +
+  labs(caption = "Source: U.S. Census/ACS5 2018, ACS5 2013") 
+```
+
+Creating a map with inadequate plumbing by county with a rural/urban overlay.
+
+
+
