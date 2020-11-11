@@ -1,0 +1,462 @@
+---
+title: "Visualizations"
+output: html_notebook
+---
+
+```{r}
+library(tidycensus)
+library(censusapi)
+library(tigris)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(leaflet)
+library(leaflet.extras)
+library(tmap)
+library(tmaptools)
+library(stringr)
+library(RColorBrewer)
+library(sf)
+library(viridis)
+library(htmlwidgets)
+library(htmltools)
+library(shiny)
+library(shinyjs)
+```
+
+```{r}
+#NC plumbing data and unit occupancy data via the Census
+Sys.setenv(CENSUS_KEY="f8926d2beb514da70fdcd1abdac3eab3c261b34a")
+readRenviron("~/.Renviron")
+Sys.getenv("CENSUS_KEY")
+
+vars2010 <- load_variables(2010, "acs5", cache = TRUE)
+#View(vars2010)
+
+plumbing2018 <- get_acs(geography = "county",
+                        variables = "B25048_003E", 
+                        state = "NC",
+                        year = 2018)
+plumbing2018 <- plumbing2018 %>%
+  select(-variable)
+plumbing2013 <- get_acs(geography = "county",
+                        variables = "B25048_003E",
+                        state = "NC",
+                        year = 2013)
+plumbing2013 <- plumbing2013 %>%
+  select(-variable)
+plumbing2009 <- get_acs(geography = "county",
+                        variables = "B25048_003E",
+                        state = "NC",
+                        year = 2009)
+plumbing2009 <- plumbing2009 %>%
+  select(-variable)
+
+units2018 <- get_acs(geography = "county",
+                        variables = "B25002_002", 
+                        state = "NC",
+                        year = 2018)
+units2018 <- units2018 %>%
+  select(-variable)
+units2009 <- get_acs(geography = "county",
+                        variables = "B25002_002", 
+                        state = "NC",
+                        year = 2009)
+units2009 <- units2009 %>%
+  select(-variable)
+```
+
+```{r}
+#Cleaning the column names
+names(plumbing2018)[names(plumbing2018) == "NAME"] <- "County"
+names(plumbing2018)[names(plumbing2018) == "estimate"] <- "IncompletePlumbing2018"
+names(plumbing2018)[names(plumbing2018) == "moe"] <- "MarginofError"
+
+names(plumbing2013)[names(plumbing2013) == "NAME"] <- "County"
+names(plumbing2013)[names(plumbing2013) == "estimate"] <- "IncompletePlumbing2013"
+names(plumbing2013)[names(plumbing2013) == "moe"] <- "MarginofError"
+
+names(plumbing2009)[names(plumbing2009) == "NAME"] <- "County"
+names(plumbing2009)[names(plumbing2009) == "estimate"] <- "IncompletePlumbing2009"
+names(plumbing2009)[names(plumbing2009) == "moe"] <- "MarginofError"
+
+names(units2018)[names(units2018) == "estimate"] <- "OccupiedUnits2018"
+names(units2018)[names(units2018) == "moe"] <- "MarginofError"
+
+names(units2009)[names(units2009) == "estimate"] <- "OccupiedUnits2009"
+names(units2009)[names(units2009) == "moe"] <- "MarginofError"
+```
+
+```{r}
+#Getting shapefiles, joining sf to data
+
+plumbing2018 <- merge(plumbing2018, units2018, by = "GEOID")
+plumbing2018 <- plumbing2018 %>%
+  select(GEOID, County, IncompletePlumbing2018, OccupiedUnits2018) %>%
+  mutate(
+    PctInsufficient = (IncompletePlumbing2018 / OccupiedUnits2018)
+  )
+
+options(tigris_class = "sf")
+nc_counties <- counties("NC", cb = T)
+
+countyplumbing <- merge(nc_counties, plumbing2018, by = "GEOID")
+countyplumbing <- countyplumbing %>%
+  select(GEOID, NAME, IncompletePlumbing2018, OccupiedUnits2018, PctInsufficient, geometry)
+
+countyplumbing$NAME <- str_c(countyplumbing$NAME, " County")
+
+str(countyplumbing)
+str(nc_counties)
+```
+
+```{r}
+#First map: how many homes in each NC county had insufficient plumbing in 2018? (Raw numbers)
+palette <- colorNumeric("Blues", domain = countyplumbing$IncompletePlumbing_Total)
+popup <- paste0("<strong>", countyplumbing$NAME, "</strong><br/>Total: ", countyplumbing$IncompletePlumbing2018)
+
+titlehtml <-  tags$style(HTML("
+                              .leaflet-control.map-title {
+                              transform: translate(-50%,20%);
+                              position: fixed !important;
+                              left: 50%;
+                              text-align: center;
+                              padding-left: 10px;
+                              padding-right: 10px;
+                              background: rgba(255,255,255,0.75);
+                              font-weight: bold;
+                              font-size: 45pz;
+                              }
+                              "))
+
+title1 <- tags$div(
+  titlehtml, HTML("How many homes in each county have insufficient plumbing?")
+)
+
+Sys.setenv(GOOGLE_MAP_GEOCODING_KEY = "AIzaSyC9DMCSIEelhSxJN3hJnClWKkx5dO1wnhc")
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-80, 36, zoom = 6.6) %>%
+  addPolygons(
+    data = countyplumbing,
+    fillColor = ~palette(countyplumbing$IncompletePlumbing2018),
+    stroke = TRUE,
+    color = "black",
+    opacity = 1,
+    fillOpacity = 0.9,
+    weight = 0.2,
+    smoothFactor = 0.2,
+    popup = ~popup,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)
+  ) %>%
+  addLegend(pal = palette,
+            values = countyplumbing$IncompletePlumbing2018,
+            position = "bottomright",
+            title = "Total Homes with<br />Incomplete Plumbing") %>%
+  addControl(title1, position = "topright", className = "map=title") %>%
+  addSearchGoogle()
+
+```
+
+```{r}
+#Second map: what percentage of homes had insufficient plumbing in each county in NC in 2018?
+palette2 <- colorNumeric("Blues", domain = countyplumbing$PctInsufficient)
+countyplumbing$PctInsufficient <- round(countyplumbing$PctInsufficient, 3)
+popup2 <- paste0("<strong>", countyplumbing$NAME, "</strong><br/>Percentage: ", countyplumbing$PctInsufficient, "<br/>Total Insufficient: ", countyplumbing$IncompletePlumbing2018, "<br/>Total Units: ", countyplumbing$OccupiedUnits2018)
+
+
+title1 <- tags$div(
+  titlehtml, HTML("What percentage of homes in each county has insufficient plumbing?")
+)
+
+map2 <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-80, 36, zoom = 6.5) %>%
+  addPolygons(
+    data = countyplumbing,
+    fillColor = ~palette2(countyplumbing$PctInsufficient),
+    fillOpacity = 0.9,
+    stroke = TRUE,
+    color = "black",
+    opacity = 1,
+    weight = 0.2,
+    smoothFactor = 0.2,
+    popup = ~popup2,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)
+  ) %>%
+  addLegend(pal = palette2,
+            values = countyplumbing$PctInsufficient,
+            position = "bottomright",
+            title = "Percentage of homes<br />with incomplete<br />plumbing") %>%
+  addControl(title1, position = "topright", className = "map=title") %>%
+  addSearchGoogle()
+
+map2
+```
+
+```{r}
+#How did number of housing units in each county change from 2010-2018?
+units5yr <- merge(units2009, units2018, by = "GEOID")
+units5yr <- units5yr %>%
+  select(GEOID, NAME.x, OccupiedUnits2009, OccupiedUnits2018) %>%
+  mutate(
+    PctChangeUnits = ((OccupiedUnits2018 - OccupiedUnits2009) / OccupiedUnits2009) * 100,
+    Increase = case_when(PctChangeUnits >= 0 ~ 1,
+                         PctChangeUnits < 0 ~ 0)
+  ) 
+
+mean(units5yr$Increase) #81 counties increased occupied units over time. 19 decreased occupied units over time
+
+IncreasedUnits <- units5yr %>%
+  filter(Increase == 1)
+
+DecreasedUnits <- units5yr %>%
+  filter(Increase == 0)
+
+countyplumbing <- merge(units5yr, countyplumbing, by = "GEOID")
+countyplumbing <- countyplumbing %>%
+  select(GEOID, NAME.x, IncompletePlumbing2018, OccupiedUnits2009, OccupiedUnits2018.x, PctChangeUnits, Increase, PctInsufficient, geometry)
+
+names(countyplumbing)[names(countyplumbing) == "NAME.x"] <- "County"
+names(countyplumbing)[names(countyplumbing) == "OccupiedUnits2018.x"] <- "OccupiedUnits2018"
+
+str(countyplumbing)
+countyplumbing <- st_as_sf(countyplumbing)
+str(countyplumbing)
+```
+
+```{r}
+#Map 3: Mapping whether housing units have increased or decreased over time in each NC county
+palette3 <- colorNumeric(palette = c("#bedbea", "#2166ac"), domain = countyplumbing$Increase)
+
+popup3 <- paste0("In ", "<strong>", changeplumbing$County.x, "</strong> the number of housing units ", changeplumbing$Increase, " between 2009 and 2018.")
+
+title3 <- tags$div(
+  titlehtml, HTML("How did the number of housing units overall change between 2009 and 2018?")
+)
+
+map3 <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-80, 36, zoom = 6.6) %>%
+  addPolygons(
+    data = countyplumbing,
+    fillColor = ~palette3(countyplumbing$Increase),
+    fillOpacity = 0.9,
+    stroke = TRUE,
+    color = "black",
+    opacity = 1,
+    weight = 0.2,
+    smoothFactor = 0.2,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+    popup = popup3
+) %>%
+    addLegend(colors = c("#bedbea", "#2166ac"),
+              labels = c("Decreased", "Increased"),
+              position = "bottomleft",
+              title = "Increase<br />or Decrease") %>%
+    addControl(title, position = "topright", className = "map=title")
+
+map3
+```
+
+```{r}
+#Change in time of homes with insufficient plumbing. From 2009 to 2018.
+changeplumbing <- merge(countyplumbing, plumbing2009, by = "GEOID")
+changeplumbing <- changeplumbing %>%
+    mutate(
+    PctChangePlumbing = ((IncompletePlumbing2018 - IncompletePlumbing2009) / IncompletePlumbing2009) * 100
+  ) %>%
+  select(GEOID,County.x, IncompletePlumbing2018, IncompletePlumbing2009, PctChangePlumbing, OccupiedUnits2009, OccupiedUnits2018, PctChangeUnits, PctInsufficient, geometry)
+
+messy <- changeplumbing %>%
+  filter(PctChangePlumbing == "NaN" | PctChangePlumbing == "Inf")
+changeplumbing$PctChangePlumbing <- recode(changeplumbing$PctChangePlumbing, `Inf` = -100)
+
+changeplumbing[is.na(changeplumbing)] <- 0
+
+didthatwork <- changeplumbing %>%
+  filter(PctChangePlumbing == "NaN" | PctChangePlumbing == "Inf")
+```
+
+```{r}
+#Map 4: Did the number of houses with insufficient plumbing increase or decrease in each county?
+changeplumbing <- changeplumbing %>%
+  mutate(Increase = case_when(changeplumbing$PctChangePlumbing > 0 ~ "increased",
+                              changeplumbing$PctChangePlumbing < 0 ~ "decreased",
+                              changeplumbing$PctChangePlumbing == 0 ~ "stayed the same"))
+
+changeplumbing <- changeplumbing %>%
+  mutate(
+    RawPlumbingChange = IncompletePlumbing2018 - IncompletePlumbing2009
+  )
+
+brewer.pal.info
+factpal <- colorFactor(brewer.pal(n = 3, name = "Blues"), changeplumbing$RawPlumbingChange)
+
+popup4 <- paste0("In ", "<strong>", changeplumbing$County.x, "</strong> the percentage of homes with insufficient plumbing ", case_when(changeplumbing$PctChangePlumbing > 0 ~ "increased ", changeplumbing$PctChangePlumbing < 0 ~ "decreased ", changeplumbing$PctChangePlumbing == 0	 ~ "stayed the same "), "between 2009 and 2018")
+
+title4 <- tags$div(
+  titlehtml, HTML("How did the number of homes in each county with insufficient plumbing change between 2009 and 2018?")
+)
+
+labels <- c("Decreased", "Increased")
+
+map4 <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-80, 36, zoom = 6.6) %>%
+  addPolygons(
+    data = changeplumbing,
+    stroke = TRUE,
+    fillColor = ~factpal(changeplumbing$PctChangePlumbing),
+    fillOpacity = 0.9,
+    smoothFactor = 0.5,
+    color = "black",
+    opacity = 1,
+    weight = 0.3,
+    popup = ~popup4,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)
+  ) %>%
+  addLegend(pal = factpal,
+            values = changeplumbing$Increase,
+            position = "bottomleft",
+            title = "Percentage Change<br />Incomplete Plumbing",
+            labFormat = function(type,cuts,p) {
+              paste0(labels)
+            }) %>%
+    addControl(title, position = "topright", className = "map=title")
+
+map4
+```
+
+```{r}
+#Map 5: Percent change of houses with insufficient plumbing in each county between 2009 and 2018
+#palette_explorer()
+
+changeplumbing$PctChangePlumbing <- round(changeplumbing$PctChangePlumbing, 2)
+
+palette5 <- colorNumeric("Blues", domain = changeplumbing$PctChangePlumbing)
+palette5 <- colorFactor(get_brewer_pal("RdBu", n = 7), domain = changeplumbing$PctChangePlumbing)
+
+popup5 <- paste0("In ", "<strong>", changeplumbing$County.x, "</strong> the percentage of homes with insufficient plumbing ", case_when(changeplumbing$PctChangePlumbing > 0 ~ "increased by ", changeplumbing$PctChangePlumbing < 0 ~ "decreased by ", changeplumbing$PctChangePlumbing == 0 ~ "stayed the same"), changeplumbing$PctChangePlumbing, " between 2009 and 2018.")
+
+title <- tags$div(
+  titlehtml, HTML("How did the percentage of homes with incomplete plumbing change?")
+)
+
+?addLegend
+max(changeplumbing$PctChangePlumbing) #562.5
+min(changeplumbing$PctChangePlumbing) #-100
+
+map5 <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-80, 36, zoom = 6.6) %>%
+  addPolygons(
+    data = changeplumbing,
+    stroke = TRUE,
+    fillColor = ~palette5(changeplumbing$PctChangePlumbing),
+    fillOpacity = 0.9,
+    smoothFactor = 0.5,
+    color = "black",
+    opacity = 1,
+    weight = 0.3,
+    popup = ~popup5,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)
+  ) %>%
+  addLegend(#pal = palette5,
+            colors = c("#b2182b", "#df745c", "#facab2", "#f7f7f7", "#bedbea", "#5aa2cb", "#2166ac"),
+            labels = c("Decreased a lot", "Decreased", "Decreased a little", "Stayed the Sameish", "Increased a little", "Increased", "Increased a lot"),
+            values = changeplumbing$PctChangePlumbing,
+            position = "bottomright",
+            title = "Percentage Change<br />Incomplete Plumbing",
+            opacity = 1.0) %>%
+  addControl(title, position = "topright", className = "map=title")
+
+map5
+```
+
+```{r}
+#Plot1: top 10 counties with insufficient plumbing in NC
+top10 <- changeplumbing %>%
+  arrange(desc(IncompletePlumbing2009)) %>%
+  select(County.x, IncompletePlumbing2018)
+
+top10 <- top10 %>%
+  top_n(10, top10$IncompletePlumbing2018)
+
+top10$County.x <- str_remove(top10$County.x, ", North Carolina")
+
+top10pct <- changeplumbing %>%
+  arrange(desc(PctInsufficient)) %>%
+  select(County.x, PctInsufficient)
+
+top10pct <- top10pct %>%
+  top_n(10, top10pct$PctInsufficient)
+
+top10pct$County.x <- str_remove(top10pct$County.x, ", North Carolina")
+```
+
+```{r}
+plot1 <- ggplot(data = top10, aes(x = reorder(County.x, -IncompletePlumbing2018), y = (IncompletePlumbing2018))) +
+  geom_bar(stat = "identity",
+           width = 0.9,
+           color = "dark blue",
+           fill = "dark blue") +
+  labs(x = "County",
+       y = "Total",
+       title = "North Carolina Counties with the \nMost Homes with Insufficient Plumbing") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(hjust = 0.5, angle = 30))
+
+plot1
+```
+
+```{r}
+plot2 <- ggplot(data = top10pct, aes(x = reorder(County.x, -PctInsufficient), y = (PctInsufficient))) +
+  geom_bar(stat = "identity",
+           width = 0.9,
+           color = "dark blue",
+           fill = "dark blue") +
+  labs(x = "County",
+       y = "Percentage",
+       title = "North Carolina Counties with the Highest \n Percentage of Homes with Insufficient Plumbing") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(hjust = 0.5, angle = 30))
+
+plot2
+```
+
+```{r}
+#I don't like the way that the increase/decrease maps turned out. I'm going to try them again with tmap
+
+str(nc_counties)
+str(changeplumbing)
+
+tmap_mode("view")
+
+popup6 <- paste0("In ", "<strong>", changeplumbing$County.x, "</strong> the number of housing units ", changeplumbing$Increase, " between 2009 and 2018.")
+
+changeplumbing$Increase <- paste(toupper(substr(changeplumbing$Increase, 1, 1)), substr(changeplumbing$Increase, 2, nchar(changeplumbing$Increase)), sep="")
+
+tmap6 <- tm_shape(changeplumbing) +
+  tm_polygons(col = "Increase", 
+              id = "County.x", 
+              palette = "Blues",
+              ) +
+  tm_layout(legend.bg.color = "blue")
+
+leafmap <- tmap_leaflet(tmap6)
+#install.packages("listviewer")
+listviewer::jsonedit(leafmap$x$calls)
+
+str(leafmap$x$calls[[4]], max.level = 2)
+leafmap$x$calls[[4]]$args[[5]] <- leaflet::evalFormula(
+  ~paste0(popup6
+  ),
+  data = changeplumbing
+)
+
+leafmap
+```
