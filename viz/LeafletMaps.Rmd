@@ -22,6 +22,7 @@ library(htmlwidgets)
 library(htmltools)
 library(shiny)
 library(shinyjs)
+library(viridisLite)
 ```
 
 ```{r}
@@ -85,27 +86,6 @@ names(units2018)[names(units2018) == "moe"] <- "MarginofError"
 
 names(units2009)[names(units2009) == "estimate"] <- "OccupiedUnits2009"
 names(units2009)[names(units2009) == "moe"] <- "MarginofError"
-```
-
-```{r}
-#Margin of error work
-
-moedata <- merge(plumbing2009, plumbing2018, by = "GEOID")
-
-names(moedata)[names(moedata) == "MarginofError.x"] <- "MarginofError2009"
-names(moedata)[names(moedata) == "MarginofError.y"] <- "MarginofError2018"
-
-moedata <- moedata %>%
-  select(-County.y)
-
-moedata <- moedata %>%
-  mutate(
-    min2009 = IncompletePlumbing2009 - MarginofError2009,
-    max2018 = IncompletePlumbing2018 + MarginofError2018
-  ) %>%
-  mutate(
-    diff = min2009 - max2018
-  )
 ```
 
 ```{r}
