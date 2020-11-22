@@ -1,6 +1,8 @@
 ---
 title: "Leaflet maps"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r}
@@ -23,6 +25,11 @@ library(htmltools)
 library(shiny)
 library(shinyjs)
 library(viridisLite)
+library(rgdal)
+library(maptools)
+library(gridExtra)
+#install.packages("reshape2")
+library(reshape2)
 ```
 
 ```{r}
@@ -107,14 +114,14 @@ countyplumbing <- countyplumbing %>%
 
 countyplumbing$NAME <- str_c(countyplumbing$NAME, " County")
 
-str(countyplumbing)
-str(nc_counties)
+(countyplumbing)
+(nc_counties)
 ```
 
 ```{r}
 #First map: how many homes in each NC county had insufficient plumbing in 2018? (Raw numbers)
 palette <- colorNumeric("Blues", domain = countyplumbing$IncompletePlumbing_Total)
-popup <- paste0("<strong>", countyplumbing$NAME, "</strong><br/>Total: ", countyplumbing$IncompletePlumbing2018)
+popup <- paste0("<ong>", countyplumbing$NAME, "</ong><br/>Total: ", countyplumbing$IncompletePlumbing2018)
 
 titlehtml <-  tags$style(HTML("
                               .leaflet-control.map-title {
@@ -126,7 +133,7 @@ titlehtml <-  tags$style(HTML("
                               padding-right: 10px;
                               background: rgba(255,255,255,0.75);
                               font-weight: bold;
-                              font-size: 45pz;
+                              font-size: 45px;
                               }
                               "))
 
@@ -164,7 +171,8 @@ leaflet() %>%
 #Second map: what percentage of homes had insufficient plumbing in each county in NC in 2018?
 palette2 <- colorNumeric("Blues", domain = countyplumbing$PctInsufficient)
 countyplumbing$PctInsufficient <- round(countyplumbing$PctInsufficient, 3)
-popup2 <- paste0("<strong>", countyplumbing$NAME, "</strong><br/>Percentage: ", countyplumbing$PctInsufficient, "<br/>Total Insufficient: ", countyplumbing$IncompletePlumbing2018, "<br/>Total Units: ", countyplumbing$OccupiedUnits2018)
+
+popup2 <- paste0("<ong>", countyplumbing$NAME, "</ong><br/>Percentage: ", countyplumbing$PctInsufficient, "<br/>Total Insufficient: ", countyplumbing$IncompletePlumbing2018, "<br/>Total Units: ", countyplumbing$OccupiedUnits2018)
 
 
 title1 <- tags$div(
@@ -222,23 +230,23 @@ countyplumbing <- countyplumbing %>%
 names(countyplumbing)[names(countyplumbing) == "NAME.x"] <- "County"
 names(countyplumbing)[names(countyplumbing) == "OccupiedUnits2018.x"] <- "OccupiedUnits2018"
 
-str(countyplumbing)
+(countyplumbing)
 countyplumbing <- st_as_sf(countyplumbing)
-str(countyplumbing)
+(countyplumbing)
 ```
 
 ```{r}
 #Map 3: Mapping whether housing units have increased or decreased over time in each NC county
 palette3 <- colorNumeric(palette = c("#bedbea", "#2166ac"), domain = countyplumbing$Increase)
 
-popup3 <- paste0("In ", "<strong>", changeplumbing$County.x, "</strong> the number of housing units ", changeplumbing$Increase, " between 2009 and 2018.")
+popup3 <- paste0("In ", "<ong>", countyplumbing$County, "</ong> the number of housing units ", countyplumbing$Increase, " between 2009 and 2018.")
 
 title3 <- tags$div(
   titlehtml, HTML("How did the number of housing units overall change between 2009 and 2018?")
 )
 
 map3 <- leaflet() %>%
-  addProviderTiles(providers$CartoDB.Positron) %>%
+  addProviderTiles(providers$CartoDB.Positron)%>%
   setView(-80, 36, zoom = 6.6) %>%
   addPolygons(
     data = countyplumbing,
@@ -256,7 +264,7 @@ map3 <- leaflet() %>%
               labels = c("Decreased", "Increased"),
               position = "bottomleft",
               title = "Increase<br />or Decrease") %>%
-    addControl(title, position = "topright", className = "map=title")
+    addControl(title3, position = "topright", className = "map=title")
 
 map3
 ```
@@ -293,9 +301,9 @@ changeplumbing <- changeplumbing %>%
   )
 
 brewer.pal.info
-factpal <- colorFactor(brewer.pal(n = 3, name = "Blues"), changeplumbing$RawPlumbingChange)
+factpal <- colorNumeric(palette = c("Blues"), domain = changeplumbing$RawPlumbingChange)
 
-popup4 <- paste0("In ", "<strong>", changeplumbing$County.x, "</strong> the percentage of homes with insufficient plumbing ", case_when(changeplumbing$PctChangePlumbing > 0 ~ "increased ", changeplumbing$PctChangePlumbing < 0 ~ "decreased ", changeplumbing$PctChangePlumbing == 0	 ~ "stayed the same "), "between 2009 and 2018")
+popup4 <- paste0("In ", "<ong>", changeplumbing$County.x, "</ong> the number of homes with insufficient plumbing ", case_when(changeplumbing$RawPlumbingChange > 0 ~ "increased ", changeplumbing$RawPlumbingChange < 0 ~ "decreased ", changeplumbing$RawPlumbingChange == 0	 ~ "stayed the same "), "by ", changeplumbing$RawPlumbingChange, "between 2009 and 2018")
 
 title4 <- tags$div(
   titlehtml, HTML("How did the number of homes in each county with insufficient plumbing change between 2009 and 2018?")
@@ -309,7 +317,7 @@ map4 <- leaflet() %>%
   addPolygons(
     data = changeplumbing,
     stroke = TRUE,
-    fillColor = ~factpal(changeplumbing$PctChangePlumbing),
+    fillColor = ~factpal(changeplumbing$RawPlumbingChange),
     fillOpacity = 0.9,
     smoothFactor = 0.5,
     color = "black",
@@ -319,13 +327,13 @@ map4 <- leaflet() %>%
     highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)
   ) %>%
   addLegend(pal = factpal,
-            values = changeplumbing$Increase,
+            values = changeplumbing$RawPlumbingChange,
             position = "bottomleft",
             title = "Percentage Change<br />Incomplete Plumbing",
             labFormat = function(type,cuts,p) {
               paste0(labels)
             }) %>%
-    addControl(title, position = "topright", className = "map=title")
+    addControl(title4, position = "topright", className = "map=title")
 
 map4
 ```
@@ -339,7 +347,7 @@ changeplumbing$PctChangePlumbing <- round(changeplumbing$PctChangePlumbing, 2)
 palette5 <- colorNumeric("Blues", domain = changeplumbing$PctChangePlumbing)
 palette5 <- colorFactor(get_brewer_pal("RdBu", n = 7), domain = changeplumbing$PctChangePlumbing)
 
-popup5 <- paste0("In ", "<strong>", changeplumbing$County.x, "</strong> the percentage of homes with insufficient plumbing ", case_when(changeplumbing$PctChangePlumbing > 0 ~ "increased by ", changeplumbing$PctChangePlumbing < 0 ~ "decreased by ", changeplumbing$PctChangePlumbing == 0 ~ "stayed the same"), changeplumbing$PctChangePlumbing, " between 2009 and 2018.")
+popup5 <- paste0("In ", "<ong>", changeplumbing$County.x, "</ong> the percentage of homes with insufficient plumbing ", case_when(changeplumbing$PctChangePlumbing > 0 ~ "increased by ", changeplumbing$PctChangePlumbing < 0 ~ "decreased by ", changeplumbing$PctChangePlumbing == 0 ~ "stayed the same"), changeplumbing$PctChangePlumbing, " between 2009 and 2018.")
 
 title <- tags$div(
   titlehtml, HTML("How did the percentage of homes with incomplete plumbing change?")
@@ -430,35 +438,697 @@ plot2
 ```
 
 ```{r}
-#I don't like the way that the increase/decrease maps turned out. I'm going to try them again with tmap
+western <- c("Cheshire County, North Carolina", "Clay County, North Carolina", "Macon County, North Carolina", "Swain County, North Carolina", "Jackson County, North Carolina", "Haywood County, North Carolina", "Transylvania County, North Carolina", "Madison County, North Carolina", "Buncombe County, North Carolina", "Henderson County, North Carolina", "Polk County, North Carolina", "Rutherford County, North Carolina", "Graham County, North Carolina")
+western <- data.frame(western)
+western <- western %>%
+  mutate(region = "western")
+names(western)[names(western) == "western"] <- "county"
 
-str(nc_counties)
-str(changeplumbing)
+northwest <- c("Yancey County, North Carolina", "Mitchell County, North Carolina", "McDowell County, North Carolina", "Burke County, North Carolina", "Caldwell County, North Carolina", "Avery County, North Carolina", "Watauga County, North Carolina", "Catawba County, North Carolina", "Alexander County, North Carolina", "Wilkes County, North Carolina", "Ashe County, North Carolina", "Alleghany County, North Carolina")
+northwest <- data.frame(northwest)
+northwest <- northwest %>%
+  mutate(region = "northwest")
+names(northwest)[names(northwest) == "northwest"] <- "county"
 
-tmap_mode("view")
+southwest <- c("Cleveland County, North Carolina", "Lincoln County, North Carolina", "Gaston County, North Carolina", "Mecklenburg County, North Carolina", "Union County, North Carolina", "Anson County, North Carolina", "Stanly County, North Carolina", "Cabarrus County, North Carolina", "Rowan County, North Carolina", "Iredell County, North Carolina")
+southwest <- data.frame(southwest)
+southwest <- southwest %>%
+  mutate(region = "southwest")
+names(southwest)[names(southwest) == "southwest"] <- "county"
 
-popup6 <- paste0("In ", "<strong>", changeplumbing$County.x, "</strong> the number of housing units ", changeplumbing$Increase, " between 2009 and 2018.")
+piedmonttriad <- c("Surry County, North Carolina", "Stokes County, North Carolina", "Rockingham County, North Carolina", "Caswell County, North Carolina", "Yadkin County, North Carolina", "Forsyth County, North Carolina", "Davie County, North Carolina", "Davidson County, North Carolina", "Randolph County, North Carolina", "Guilford County, North Carolina", "Alamance County, North Carolina")
+piedmonttriad <- data.frame(piedmonttriad)
+piedmonttriad <- piedmonttriad %>%
+  mutate(region = "piedmonttriad")
+names(piedmonttriad)[names(piedmonttriad) == "piedmonttriad"] <- "county"
 
-changeplumbing$Increase <- paste(toupper(substr(changeplumbing$Increase, 1, 1)), substr(changeplumbing$Increase, 2, nchar(changeplumbing$Increase)), sep="")
+southcentral <- c("Montgomery County, North Carolina", "Moore County, North Carolina", "Richmond County, North Carolina", "Scotland County, North Carolina", "Robeson County, North Carolina", "Columbus County, North Carolina", "Bladen County, North Carolina", "Sampson County, North Carolina", "Cumberland County, North Carolina", "Hoke County, North Carolina")
+southcentral <- data.frame(southcentral)
+southcentral <- southcentral %>%
+  mutate(region = "southcentral")
+names(southcentral)[names(southcentral) == "southcentral"] <- "county"
+
+northcentral <- c("Person County, North Carolina", "Granville County, North Carolina", "Vance County, North Carolina", "Warren County, North Carolina", "Orange County, North Carolina", "Durham County, North Carolina", "Chatham County, North Carolina", "Lee County, North Carolina", "Harnett County, North Carolina", "Johnston County, North Carolina", "Wilson County, North Carolina", "Edgecombe County, North Carolina", "Nash County, North Carolina", "Wake County, North Carolina", "Franklin County, North Carolina")
+northcentral <- data.frame(northcentral)
+northcentral <- northcentral %>%
+  mutate(region = "northcentral")
+names(northcentral)[names(northcentral) == "northcentral"] <- "county"
+
+southeast <- c("Wayne County, North Carolina", "Greene County, North Carolina", "Lenoir County, North Carolina", "Craven County, North Carolina", "Pamlico County, North Carolina", "Duplin County, North Carolina", "Onslow County, North Carolina", "Pender County, North Carolina", "Brunswick County, North Carolina", "New Hanover County, North Carolina", "Carteret County, North Carolina", "Jones County, North Carolina")
+southeast <- data.frame(southeast)
+southeast <- southeast %>%
+  mutate(region = "southeast")
+names(southeast)[names(southeast) == "southeast"] <- "county"
+
+northeast <-c("Northampton County, North Carolina", "Halifax County, North Carolina", "Hertford County, North Carolina", "Gates County, North Carolina", "Bertie County, North Carolina", "Martin County, North Carolina", "Pitt County, North Carolina", "Beaufort County, North Carolina", "Hyde County, North Carolina", "Dare County, North Carolina", "Tyrrell County, North Carolina", "Washington County, North Carolina", "Currituck County, North Carolina", "Camden County, North Carolina", "Pasquotank County, North Carolina", "Perquimans County, North Carolina", "Chowan County, North Carolina")
+northeast <- data.frame(northeast)
+northeast <- northeast %>%
+  mutate(region = "northeast")
+names(northeast)[names(northeast) == "northeast"] <- "county"
+
+counties <- rbind(western, northwest, southwest, piedmonttriad, southcentral, northcentral, southeast, northeast)
+names(counties)[names(counties) == "county"] <- "NAME"
+```
+
+```{r}
+#western <- c("Cheshire County, NC", "Clay County, NC", "Macon County, NC", "Swain County, NC", "Jackson County, NC", "Haywood County, NC", "Transylvania County, NC", "Madison County, NC", "Buncombe County, NC", "Henderson County, NC", "Polk County, NC", "Rutherford County, NC", "Graham County, NC")
+#western <- data.frame(western)
+#western <- western %>%
+  #mutate(region = "western")
+#names(western)[names(western) == "western"] <- "county"
+
+#northwest <- c("Yancey County, NC", "Mitchell County, NC", "McDowell County, NC", "Burke County, NC", "Caldwell County, NC", "Avery County, NC", "Watauga County, NC", "Catawba County, NC", "Alexander County, NC", "Wilkes County, NC", "Ashe County, NC", "Alleghany County, NC")
+#northwest <- data.frame(northwest)
+#northwest <- northwest %>%
+  #mutate(region = "northwest")
+#names(northwest)[names(northwest) == "northwest"] <- "county"
+
+#southwest <- c("Cleveland County, NC", "Lincoln County, NC", "Gaston County, NC", "Mecklenburg County, NC", "Union County, NC", "Anson County, NC", "Stanly County, NC", "Cabarrus County, NC", "Rowan County, NC", "Iredell County, NC")
+#southwest <- data.frame(southwest)
+#southwest <- southwest %>%
+  #mutate(region = "southwest")
+#names(southwest)[names(southwest) == "southwest"] <- "county"
+
+#piedmonttriad <- c("Surry County, NC", "Stokes County, NC", "Rockingham County, NC", "Caswell County, NC", "Yadkin County, NC", "Forsyth County, NC", "Davie County, NC", "Davidson County, NC", "Randolph County, NC", "Guilford County, NC", "Alamance County, NC")
+#piedmonttriad <- data.frame(piedmonttriad)
+#piedmonttriad <- piedmonttriad %>%
+  #mutate(region = "piedmonttriad")
+#names(piedmonttriad)[names(piedmonttriad) == "piedmonttriad"] <- "county"
+
+#southcentral <- c("Montgomery County, NC", "Moore County, NC", "Richmond County, NC", "Scotland County, NC", "Robeson County, NC", "Columbus County, NC", "Bladen County, NC", "Sampson County, NC", "Cumberland County, NC", "Hoke County, NC")
+#southcentral <- data.frame(southcentral)
+#southcentral <- southcentral %>%
+  #mutate(region = "southcentral")
+#names(southcentral)[names(southcentral) == "southcentral"] <- "county"
+
+#northcentral <- c("Person County, NC", "Granville County, NC", "Vance County, NC", "Warren County, NC", "Orange County, NC", "Durham County, NC", "Chatham County, NC", "Lee County, NC", "Harnett County, NC", "Johnston County, NC", "Wilson County, NC", "Edgecombe County, NC", "Nash County, NC", "Franklin County, NC", "Wake County, NC")
+#northcentral <- data.frame(northcentral)
+#northcentral <- northcentral %>%
+  #mutate(region = "northcentral")
+#names(northcentral)[names(northcentral) == "northcentral"] <- "county"
+
+#southeast <- c("Wayne County, NC", "Greene County, NC", "Lenoir County, NC", "Craven County, NC", "Pamlico County, NC", "Duplin County, NC", "Onslow County, NC", "Pender County, NC", "Brunswick County, NC", "New Hanover County, NC", "Carteret County, NC", "Jones County, NC")
+#southeast <- data.frame(southeast)
+#southeast <- southeast %>%
+  #mutate(region = "southeast")
+#names(southeast)[names(southeast) == "southeast"] <- "county"
+
+#northeast <-c("Northampton County, NC", "Halifax County, NC", "Hertford County, NC", "Gates County, NC", "Bertie County, NC", "Martin County, NC", "Pitt County, NC", "Beaufort County, NC", "Hyde County, NC", "Dare County, NC", "Tyrrell County, NC", "Washington County, NC", "Currituck County, NC", "Camden County, NC", "Pasquotank County, NC", "Perquimans County, NC", "Chowan County, NC")
+#northeast <- data.frame(northeast)
+#northeast <- northeast %>%
+  #mutate(region = "northeast")
+#names(northeast)[names(northeast) == "northeast"] <- "county"
+
+#counties <- rbind(western, northwest, southwest, piedmonttriad, southcentral, northcentral, southeast, northeast)
+#names(counties)[names(counties) == "county"] <- "NAME"
+```
+
+
+```{r}
+census <- get_acs(geography = "county",
+                  variables = "B25048_003E",
+                  state = "NC",
+                  geometry = TRUE) %>%
+  arrange(NAME)
+
+census <- merge(census, counties, by = "NAME")
+
+piedmonttriad <- census$region[1]
+northwest <- census$region[2]
+southwest <- census$region[4]
+northeast <- census$region[7]
+southcentral <- census$region[9]
+southeast <- census$region[10]
+western <- census$region[11]
+northcentral <- census$region[19]
+
+census <- census %>%
+  mutate( group = case_when(region %in% piedmonttriad ~ 'Piedmont Triad',
+                   region %in% northwest ~ 'Northwest',
+                   region %in% southwest ~ 'Southwest',
+                   region %in% northeast ~'Northeast',
+                   region %in% southcentral ~ 'South Central',
+                   region %in% southeast ~ 'Southeast',
+                   region %in% western ~ 'Western',
+                   region %in% northcentral ~ 'North Central',
+                   TRUE ~ GEOID))
+
+census2 <- group_by(census, group) %>%
+  summarise(estimate2018 = sum(estimate), do_union = TRUE)
+
+gp <- ggplot() +
+  geom_sf(data = plot_data, aes(fill = estimate), color = 'white') +
+  scale_fill_viridis_c() +
+  facet_wrap(~facet, ncol = 1)
+
+gp
 
 tmap6 <- tm_shape(changeplumbing) +
   tm_polygons(col = "Increase", 
               id = "County.x", 
               palette = "Blues",
               ) +
-  tm_layout(legend.bg.color = "blue")
 
-leafmap <- tmap_leaflet(tmap6)
-#install.packages("listviewer")
-listviewer::jsonedit(leafmap$x$calls)
+tmap_mode("view")
+tm_shape(census2) +
+  tm_polygons(col = "estimate2018",
+              id = "group")
+```
 
-str(leafmap$x$calls[[4]], max.level = 2)
-leafmap$x$calls[[4]]$args[[5]] <- leaflet::evalFormula(
-  ~paste0(popup6
-  ),
-  data = changeplumbing
+```{r}
+getwd()
+dec1970county <- read_csv("/Users/taylorbuck/Desktop/390/final-project-korie/dec1970county.csv")
+
+names(dec1970county)[names(dec1970county) == "ORG_H134001"] <- "1unitallplumbing"
+names(dec1970county)[names(dec1970county) == "ORG_H134002"] <- "1unitlacking"
+names(dec1970county)[names(dec1970county) == "ORG_H134003"] <- "2unitallplumbing"
+names(dec1970county)[names(dec1970county) == "ORG_H134004"] <- "2unitlacking"
+names(dec1970county)[names(dec1970county) == "ORG_H134005"] <- "mobileallplumbing"
+names(dec1970county)[names(dec1970county) == "ORG_H134006"] <- "mobilelacking"
+
+dec1970county <- dec1970county %>%
+  select(Geo_NAME, Geo_QName, Geo_COUNTY, `1unitallplumbing`, `1unitlacking`, `2unitallplumbing`, `2unitlacking`, mobileallplumbing, mobilelacking)
+
+str(dec1970county)
+
+dec1970county <- dec1970county %>%
+  group_by(Geo_NAME) %>%
+  mutate(complete = sum(`1unitallplumbing` + `2unitallplumbing` + mobileallplumbing),
+         incomplete = sum(`1unitlacking` + `2unitlacking` + mobilelacking)) %>%
+  select(Geo_NAME, Geo_QName, Geo_COUNTY, complete, incomplete)
+
+names(dec1970county)[names(dec1970county) == "Geo_QName"] <- "NAME"
+
+dec1970county <- merge(dec1970county, counties, by = "NAME")
+
+piedmonttriad <- dec1970county$region[1]
+northwest <- dec1970county$region[2]
+southwest <- dec1970county$region[4]
+northeast <- dec1970county$region[7]
+southcentral <- dec1970county$region[9]
+southeast <- dec1970county$region[10]
+western <- dec1970county$region[11]
+northcentral <- dec1970county$region[19]
+
+dec1970county <- dec1970county %>%
+  mutate( group = case_when(region %in% piedmonttriad ~ 'Piedmont Triad',
+                   region %in% northwest ~ 'Northwest',
+                   region %in% southwest ~ 'Southwest',
+                   region %in% northeast ~'Northeast',
+                   region %in% southcentral ~ 'South Central',
+                   region %in% southeast ~ 'Southeast',
+                   region %in% western ~ 'Western',
+                   region %in% northcentral ~ 'North Central',
+                   TRUE ~ Geo_COUNTY))
+
+
+dec1970county2 <- group_by(dec1970county, group) %>%
+  summarise(estimate1970 = sum(incomplete), do_union = TRUE)
+
+plot8_data <- merge(dec1970county2, census2, by = "group")
+plot8_data <- plot8_data %>%
+  select(-do_union)
+
+plot8_data <- plot8_data %>%
+  group_by(group) %>%
+  mutate(
+    plumbingchange = estimate2018 - estimate1970,
+    pctplumbingchange = ((estimate1970 - estimate2018) / estimate2018) * 100
+  )
+
+plot8_data$pctplumbingchange <- round(plot8_data$pctplumbingchange, 2) 
+
+popup8 <- paste0("In the ", "<strong>", plot8_data$group, "</strong> region, homes with insufficient plumbing decreased by ", "<strong>", plot8_data$pctplumbingchange, "%</strong> between 1970 and 2018")
+  
+palette8 <- colorQuantile("Greens", domain = plot8_data$pctplumbingchange, n = 5)
+palette8
+brewer.pal(5, "Greens")
+#"#EDF8E9" "#BAE4B3" "#74C476" "#31A354" "#006D2C"
+
+min(plot8_data$pctplumbingchange) #448.98
+max(plot8_data$pctplumbingchange) #1283.4
+max(plot8_data$pctplumbingchange) - min(plot8_data$pctplumbingchange) #834.42
+(max(plot8_data$pctplumbingchange) - min(plot8_data$pctplumbingchange)) / 5 #166.884
+
+str(plot8_data)
+plot8_data <- st_as_sf(plot8_data)
+str(plot8_data)
+
+title8 <- tags$div(
+  titlehtml, HTML("How did the percentage of homes with insufficient plumbing changes between 1970 and 2018 in NC's counties?")
 )
 
-leafmap
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-79, 36, zoom = 6) %>%
+  addPolygons(
+    data = plot8_data,
+    stroke = TRUE,
+    fillColor = ~palette8(plot8_data$pctplumbingchange),
+    fillOpacity = 1,
+    smoothFactor = 0.5,
+    color = "black",
+    opacity = 1,
+    weight = 0.3,
+    popup = ~popup8,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)
+  ) %>%
+  addLegend(colors = c("#006d2c", "#31A354", "#74c476", "bae4b3", "#edf8e9"),
+            labels = c("1,300 - 1,100%", "1,100 - 900%", "900 - 700%", "700 - 500%", "500 - 300%"),
+            position = "bottomright",
+            opacity = 1,
+            title = "Percentage change of homes<br />with insufficient plumbing") %>%
+  addControl(title8, position = "topright", className = "map=title")
+  
+```
+
+```{r}
+#Map 9: Number of homes in each region with insufficient plumbing in 2018
+palette9 <- colorQuantile("Greens", domain = plot8_data$estimate2018, n = 5)
+legendpal <- colorNumeric("Greens", domain = plot8_data$estimate2018)
+brewer.pal(5, "Greens")
+#"#EDF8E9" "#BAE4B3" "#74C476" "#31A354" "#006D2C"
+
+min(plot8_data$estimate2018) #783
+max(plot8_data$estimate2018) #2692
+max(plot8_data$estimate2018) - min(plot8_data$estimate2018) #1909
+(max(plot8_data$estimate2018) - min(plot8_data$estimate2018)) / 5 #381.8
+
+plot8_data$popupnum <- c()
+plot8_data$popupnum <- prettyNum(plot8_data$estimate2018, big.mark = ",")
+
+title9 <- tags$div(
+  titlehtml, HTML("How many homes in each NC region had insufficient plumbing in 2018?")
+)
+
+popup9 <- paste0("In the ", "<strong>", plot8_data$group, "</strong> region, there were ", "<strong>", plot8_data$popupnum, "</strong> homes with insufficient plumbing in 2018.")
+  
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-79, 36, zoom = 6) %>%
+  addPolygons(
+    data = plot8_data,
+    stroke = TRUE,
+    fillColor = ~legendpal(plot8_data$estimate2018),
+    fillOpacity = 1,
+    smoothFactor = 0.5,
+    color = "black",
+    opacity = 1,
+    weight = 0.3,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE),
+    popup = ~popup9
+  ) %>%
+  addLegend(colors = c("#006d2c", "#31A354", "#74c476", "bae4b3", "#edf8e9"),
+            labels = c("2,300 -2,700", "1,900 - 2,300", "1,500 - 1,900", "1,100 - 1,500", "700 - 1,100"),
+            position = "bottomright",
+            title = "Number of homes with<br />insufficient plumbing in 2018",
+            opacity = 1) %>%
+  addControl(title9, position = "topright", className = "map=title")
+
+```
+
+```{r}
+#Map 10: What percentage of homes in each NC region had insufficient plumbing in 2018?
+names(counties)[names(counties) == "NAME"] <- "County"
+
+plot10plumbing <- plumbing2018 <- get_acs(geography = "county",
+                        variables = "B25048_003E", 
+                        state = "NC",
+                        year = 2018,
+                        geometry = TRUE)
+
+names(plot10plumbing)[names(plot10plumbing) == "NAME"] <- "County"
+names(plot10plumbing)[names(plot10plumbing) == "estimate"] <- "IncompletePlumbing2018"
+names(plot10plumbing)[names(plot10plumbing) == "moe"] <- "MarginofError"
+
+plot10plumbing <- merge(plot10plumbing, units2018, by = "GEOID")
+plot10plumbing <- plot10plumbing %>%
+  select(GEOID, County, IncompletePlumbing2018, OccupiedUnits2018, geometry)
+
+plot10_data <- merge(plot10plumbing, counties, by = "County")
+
+piedmonttriad <- plot10_data$region[1]
+northwest <- plot10_data$region[2]
+southwest <- plot10_data$region[4]
+northeast <- plot10_data$region[7]
+southcentral <- plot10_data$region[9]
+southeast <- plot10_data$region[10]
+western <- plot10_data$region[11]
+northcentral <- plot10_data$region[19]
+
+plot10_data <- plot10_data %>%
+  mutate(group = case_when(region %in% piedmonttriad ~ 'Piedmont Triad',
+                   region %in% northwest ~ 'Northwest',
+                   region %in% southwest ~ 'Southwest',
+                   region %in% northeast ~'Northeast',
+                   region %in% southcentral ~ 'South Central',
+                   region %in% southeast ~ 'Southeast',
+                   region %in% western ~ 'Western',
+                   region %in% northcentral ~ 'North Central',
+                   TRUE ~ GEOID))
+
+plot10_data <- group_by(plot10_data, group) %>%
+  summarise(incomplete = sum(IncompletePlumbing2018),
+            occupied= sum(OccupiedUnits2018), do_union = TRUE)
+
+plot10_data <- plot10_data %>%
+  mutate(pctincomplete = ((incomplete / occupied)) * 100)
+
+palette10 <- colorNumeric("Greens", domain = plot10_data$pctincomplete)
+
+title10 <- tags$div(
+  titlehtml, HTML("What percentage of homes in each NC region had insufficient plumbing in 2018?")
+)
+
+plot10_data$pctincomplete <- round(plot10_data$pctincomplete, 2)
+
+popup10 <- paste0("In the ", "<strong>", plot10_data$group, "</strong> region, ", "<strong>", plot10_data$pctincomplete, "%</strong> of homes had insufficient plumbing in 2018.")
+
+min(plot10_data$pctincomplete) #0.2
+max(plot10_data$pctincomplete) #0.46
+max(plot10_data$pctincomplete) - min(plot10_data$pctincomplete) #0.26
+(max(plot10_data$pctincomplete) - min(plot10_data$pctincomplete)) / 5 #0.05
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-79, 36, zoom = 6) %>%
+  addPolygons(
+    data = plot10_data,
+    stroke = TRUE,
+    fillColor = ~palette10(plot10_data$pctincomplete),
+    fillOpacity = 1,
+    smoothFactor = 0.5,
+    color = "black",
+    opacity = 1,
+    weight = 0.3,
+    popup = ~popup10,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)
+  ) %>%
+  addLegend(colors = c("#006d2c", "#31A354", "#74c476", "bae4b3", "#edf8e9"),
+            labels = c("0.50 - 0.45%", "0.45 - 0.40%", "0.40 - 0.35%", "0.35 - 0.30%", "0.30 - 0.25"),
+            position = "bottomright",
+            title = "Percentage of homes with <br /> insufficient plumbing in 2018",
+            opacity = 1) %>%
+  addControl(title10, position = "topright", className = "map=title")
+```
+
+```{r}
+withcode <- data.frame(county = c("Alexander County, North Carolina", "Brunswick County, North Carolina", "Buncombe County, North Carolina", "Burke County, North Carolina", "Cabarrus County, North Carolina", "Cleveland County, North Carolina", "Cumberland County, North Carolina", "Currituck County, North Carolina", "Duplin County, North Carolina", "Forsyth County, North Carolina", "Gaston County, North Carolina", "Henderson County, North Carolina", "Hyde County, North Carolina", "Iredell County, North Carolina", "Lee County, North Carolina", "Martin County, North Carolina", "Mecklenburg County, North Carolina", "Montgomery County, North Carolina", "Onslow County, North Carolina", "Orange County, North Carolina", "Richmond County, North Carolina", "Robeson County, North Carolina", "Rockingham County, North Carolina", "Rowan County, North Carolina", "Stanly County, North Carolina", "Vance County, North Carolina", "Wayne County, North Carolina"),
+                       code = TRUE)
+
+withoutcode <- data.frame(county = c("Alamance County, North Carolina", "Alleghany County, North Carolina", "Anson County, North Carolina", "Ashe County, North Carolina", "Avery County, North Carolina", "Beaufort County, North Carolina", "Bertie County, North Carolina", "Bladen County, North Carolina", "Caldwell County, North Carolina", "Camden County, North Carolina", "Carteret County, North Carolina", "Caswell County, North Carolina", "Catawba County, North Carolina", "Chatham County, North Carolina", "Cherokee County, North Carolina", "Chowan County, North Carolina", "Clay County, North Carolina", "Columbus County, North Carolina", "Craven County, North Carolina", "Dare County, North Carolina", "Davidson County, North Carolina", "Davie County, North Carolina", "Durham County, North Carolina", "Edgecombe County, North Carolina", "Franklin County, North Carolina", "Gates County, North Carolina", "Graham County, North Carolina", "Granville County, North Carolina", "Greene County, North Carolina", "Guilford County, North Carolina", "Halifax County, North Carolina", "Harnett County, North Carolina", "Haywood County, North Carolina", "Hertford County, North Carolina", "Hoke County, North Carolina", "Jackson County, North Carolina", "Johnston County, North Carolina, North Carolina", "Jones County, North Carolina", "Lenoir County, North Carolina", "Lincoln County, North Carolina", "McDowell County, North Carolina", "Macon County, North Carolina", "Madison County, North Carolina", "Mitchell County, North Carolina", "Moore County, North Carolina", "Nash County, North Carolina", "New Hanover County, North Carolina", "Northampton County, North Carolina", "Pamlico County, North Carolina", "Pasquotank County, North Carolina", "Pender County, North Carolina", "Perquimans County, North Carolina", "Person County, North Carolina", "Pitt County, North Carolina", "Polk County, North Carolina", "Randolph County, North Carolina", "Rutherford County, North Carolina", "Sampson County, North Carolina", "Scotland County, North Carolina", "Stokes County, North Carolina", "Surry County, North Carolina", "Swain County, North Carolina", "Transylvania County, North Carolina", "Tyrrell County, North Carolina", "Union County, North Carolina", "Wake County, North Carolina", "Warren County, North Carolina", "Washington County, North Carolina", "Watauga County, North Carolina", "Wilkes County, North Carolina", "Wilson County, North Carolina", "Yadkin County, North Carolina", "Yancey County, North Carolina"),
+                          code = FALSE)
+
+codes <- rbind(withcode, withoutcode)
+names(codes)[names(codes) == "county"] <- "County"
+
+mean(codes$code)
+
+unique(codes$County, countyplumbing$County)
+codes <- merge(codes, countyplumbing, by = "County")
+#For some reason Johnston County won't merge, so I'll do it manually
+johnston <- countyplumbing %>%
+  filter(County == "Johnston County, North Carolina")
+johnston$code <- c()
+johnston$code <- FALSE
+johnston <- johnston %>%
+  select(GEOID, County, code, IncompletePlumbing2018, OccupiedUnits2009, OccupiedUnits2018, PctChangeUnits, Increase, PctInsufficient, geometry)
+
+codes <- rbind(codes, johnston)
+
+#Map 11: Counties with housing codes
+str(codes)
+codes <- st_as_sf(codes)
+
+palette11 <- colorNumeric(c("#31A354", "#bae4b3"), domain = codes$code)
+popup11 <- paste0("<strong>", codes$County)
+title11 <- tags$div(
+  titlehtml, HTML("Which North Carolina counties have a minimun housing code?")
+)
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-79, 36, zoom = 6) %>%
+  addPolygons(
+    data = codes,
+    stroke = TRUE,
+    fillColor = ~palette11(codes$code),
+    fillOpacity = 1,
+    smoothFactor = 0.5,
+    color = "black",
+    opacity = 1,
+    weight = 0.3,
+    popup = ~popup11,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)) %>%
+  addLegend(colors = c("#31A354", "#bae4b3"),
+            labels = c("Does not have a code", "Has a code"),
+            position = "bottomright",
+            opacity = 1) %>%
+  addControl(title11, position = "topright", className = "map=title")
+```
+
+```{r}
+#Map 12: Comparing counties with minimum housing codes to counties without in each region?
+codes2 <- codes <- rbind(withcode, withoutcode)
+
+dec2 <- read_csv("/Users/taylorbuck/Desktop/390/final-project-korie/dec1970county.csv")
+
+names(dec2)[names(dec2) == "ORG_H134001"] <- "1unitallplumbing"
+names(dec2)[names(dec2) == "ORG_H134002"] <- "1unitlacking"
+names(dec2)[names(dec2) == "ORG_H134003"] <- "2unitallplumbing"
+names(dec2)[names(dec2) == "ORG_H134004"] <- "2unitlacking"
+names(dec2)[names(dec2) == "ORG_H134005"] <- "mobileallplumbing"
+names(dec2)[names(dec2) == "ORG_H134006"] <- "mobilelacking"
+
+dec2 <- dec2 %>%
+  select(Geo_NAME, Geo_QName, Geo_COUNTY, `1unitallplumbing`, `1unitlacking`, `2unitallplumbing`, `2unitlacking`, mobileallplumbing, mobilelacking)
+
+str(dec2)
+
+dec2 <- dec2 %>%
+  group_by(Geo_NAME) %>%
+  mutate(complete = sum(`1unitallplumbing` + `2unitallplumbing` + mobileallplumbing),
+         incomplete = sum(`1unitlacking` + `2unitlacking` + mobilelacking)) %>%
+  select(Geo_NAME, Geo_QName, Geo_COUNTY, complete, incomplete)
+
+names(dec2)[names(dec2) == "Geo_QName"] <- "County"
+
+dec2 <- merge(dec2, counties, by = "County")
+
+names(dec2)[names(dec2) == "County"] <- "county"
+
+plot11_data <- merge(dec2, codes2, by = "county")
+
+#Same problem with Johnston, manually adding it again
+johnston2 <- dec2 %>%
+  filter(county == "Johnston County, North Carolina")
+johnston2$code <- c()
+johnston2$code <- FALSE
+johnston2 <- johnston2 %>%
+  select(county, Geo_NAME, Geo_COUNTY, complete, incomplete, region, code)
+
+plot11_data <- rbind(plot11_data, johnston2)
+
+piedmonttriad <- plot11_data$region[1]
+northwest <- plot11_data$region[2]
+southwest <- plot11_data$region[4]
+northeast <- plot11_data$region[7]
+southcentral <- plot11_data$region[9]
+southeast <- plot11_data$region[10]
+western <- plot11_data$region[11]
+northcentral <- plot11_data$region[19]
+
+plot11_data <- plot11_data %>%
+  mutate( group = case_when(region %in% piedmonttriad ~ 'Piedmont Triad',
+                   region %in% northwest ~ 'Northwest',
+                   region %in% southwest ~ 'Southwest',
+                   region %in% northeast ~'Northeast',
+                   region %in% southcentral ~ 'South Central',
+                   region %in% southeast ~ 'Southeast',
+                   region %in% western ~ 'Western',
+                   region %in% northcentral ~ 'North Central',
+                   TRUE ~ Geo_COUNTY))
+
+census11 <- get_acs(geography = "county",
+                  variables = "B25048_003E",
+                  state = "NC",
+                  geometry = TRUE,
+                  year = 2018) %>%
+  arrange(NAME)
+names(census11)[names(census11) == "NAME"] <- "County"
+
+census11 <- merge(census11, counties, by = "County")
+
+piedmonttriad <- census11$region[1]
+northwest <- census11$region[2]
+southwest <- census11$region[4]
+northeast <- census11$region[7]
+southcentral <- census11$region[9]
+southeast <- census11$region[10]
+western <- census11$region[11]
+northcentral <- census11$region[19]
+
+names(census11)[names(census11) == "County"] <- "county"
+
+johnston4 <- census11 %>%
+  filter(county == "Johnston County, North Carolina")
+
+census11 <- merge(census11, codes2, by = "county")
+
+#Johnston County is now the bane of my existence.
+johnston4$code <- FALSE
+johnston4$code <- FALSE
+johnston4 <- johnston4 %>%
+  select(county, GEOID, variable, estimate, moe, region, code, geometry)
+
+census11 <- rbind(census11, johnston4)
+
+census11 <- census11 %>%
+  mutate(group = case_when(region %in% piedmonttriad ~ 'Piedmont Triad',
+                   region %in% northwest ~ 'Northwest',
+                   region %in% southwest ~ 'Southwest',
+                   region %in% northeast ~'Northeast',
+                   region %in% southcentral ~ 'South Central',
+                   region %in% southeast ~ 'Southeast',
+                   region %in% western ~ 'Western',
+                   region %in% northcentral ~ 'North Central',
+                   TRUE ~ GEOID))
+
+plotcensus <- group_by(census11, group, code) %>%
+  summarise(estimate18 = sum(estimate), do_union = TRUE)
+
+plotcensus <- plotcensus %>%
+  transform(plotcensus, join = paste(group, code, sep = "_"))
+
+names(plotcensus)[names(plotcensus) == "County"] <- "county"
+
+plot11_data <- group_by(plot11_data, group, code) %>%
+  summarise(estimate70 = sum(incomplete), do_union = TRUE)
+
+plot11_data <- plot11_data %>%
+  transform(plot11_data, join = paste(group, code, sep = "_"))
+
+plot11_actualdata <- merge(plot11_data, plotcensus, by = "join")
+
+plot11_actualdata <- plot11_actualdata %>%
+  select(join, group.x, code.x, estimate70, estimate18, geometry)
+
+plot11_actualdata <- plot11_actualdata %>%
+  group_by(join) %>%
+  mutate(
+    pctplumbingchange = ((estimate70 - estimate18) / estimate18) * 100
+  )
+
+str(plot11_actualdata)
+plot11_actualdata <- st_as_sf(plot11_actualdata)
+str(plot11_actualdata)
+
+plot11_actualdata$pctplumbingchange <- round(plot11_actualdata$pctplumbingchange, 2)
+
+palette12 <- colorQuantile("Greens", domain = plot11_actualdata$pctplumbingchange,n = 8)
+brewer.pal(8, "Greens")
+#"#F7FCF5" "#E5F5E0" "#C7E9C0" "#A1D99B" "#74C476" "#41AB5D" "#238B45" "#005A32"
+
+min(plot11_actualdata$pctplumbingchange) #302.81
+max(plot11_actualdata$pctplumbingchange) #4003.57
+max(plot11_actualdata$pctplumbingchange) - min(plot11_actualdata$pctplumbingchange) #3700.76
+(max(plot11_actualdata$pctplumbingchange) - min(plot11_actualdata$pctplumbingchange)) / 5 #740.151
+
+popup12 <- paste0("In counties in the ", plot11_actualdata$group.x, " region ", "<strong>", case_when(plot11_actualdata$code.x == "FALSE" ~ "without minimum housing codes,",
+          plot11_actualdata$code.x == "TRUE" ~ "with minimum housing codes,"), "</strong> the number of homes with insufficient plumbing decreased by ", case_when(plot11_actualdata$code.x == "FALSE" ~ plot11_actualdata$pctplumbingchange,
+          plot11_actualdata$code.x == "TRUE" ~ plot11_actualdata$pctplumbingchange), "%.")
+
+title12 <- tags$div(
+  titlehtml, HTML("How did the percentage of homes with insufficient plumbing change between 1970 and 2018 <br /> in counties with minimum housing codes compared to counties without?")
+)
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-79, 36, zoom = 6) %>%
+  addPolygons(
+    data = plot10_data,
+    stroke = 1,
+    fillColor = "transparent",
+    smoothFactor = 0.5,
+    color = "black",
+    weight = 0.5,
+    popup = ~popup12,
+    highlightOptions = highlightOptions(color = "white", weight = 3, bringToFront = TRUE)) %>% 
+  addPolygons(
+    data = plot11_actualdata,
+    stroke = TRUE,
+    fillColor = ~palette12(plot11_actualdata$pctplumbingchange),
+    fillOpacity = 1,
+    smoothFactor = 0.5,
+    color = "black",
+    opacity = 1,
+    weight = 0.3,
+    popup = ~popup12,
+    highlightOptions = highlightOptions(color = "white", weight = 3, bringToFront = TRUE)
+  ) %>%
+  addLegend(
+    colors = c("#005a32", "#238b45", "#41ab5d", "#74c476", "#a1d99b", "#c7e9c0", "#e5f5e0", "f7fcf5"),
+    label = c("4,000 - 3,300%", "3,300 - 2,600%", "2,600 - 1,900%", "1,900 - 1,200", "1,200 - ", "Ds,", "s", "Sa"),
+    position = "bottomright",
+    opacity = 1
+  ) %>%
+  addControl(title12, position = "topright", className = "map=title")
+```
+
+```{r}
+#Putting that into a graph 
+changewithcode <- plot11_actualdata %>%
+  filter(code.x == "TRUE") %>%
+  select(group.x, estimate70, estimate18, pctplumbingchange)
+
+forgraph <- plot11_actualdata %>%
+  as.tibble() %>%
+  select(group.x, code.x, pctplumbingchange)
+
+trythisone <- melt(forgraph, id = "group.x")
+
+trythisone <- trythisone[c(17:32),]
+
+keeptrying <- data.frame(group = c("North Central", "North Central", "Northeast", "Northeast", "Northwest", "Northwest", "Piedmont Triad", "Piedmont Triad", "South Central", "South Central", "Southeast", "Southeast", "Southwest", "Southwest", "Western", "Western"),
+                         variable = c("TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE"),
+                         value = c(407.15, 1045.06, 1182.52, 4003.57, 943.91, 630.50, 501.24, 302.81, 1786.79, 668.55, 673.16, 429.17, 938.25, 365.21, 711.07, 645.81))
+
+#variable = c("With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes"),
+#variable = c("TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE"),
+
+unique(keeptrying$value, trythisone$value)
+
+ggplot() +
+  geom_bar(
+    data = keeptrying,
+    aes(x = group,
+        y = value,
+        fill = variable),
+    position = "dodge",
+    stat = "identity"
+  ) +
+  scale_fill_manual(
+    breaks = c("TRUE", "FALSE"),
+    values = c("#41ab5d", "#c7e9c0")
+  ) +
+  labs(title = "What impact do minimum housing codes have?", 
+       subtitle = "The number of houses with insufficient plumbing has decreased in all regions in NC between \n 1970 and 2018, but generally at a higher rate in counties with minimum housing codes",
+       x = "Region",
+       y = "Percentage Change Insufficient Plumbing",
+       caption = "Data from the 1970 Decennial Survery and the 2018 5-year ACS") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 30),
+        plot.subtitle = element_text(hjust = 0.5, size = 18),
+        plot.caption = element_text(hjust = 0, face = "italic", size = 10)) +
+  theme(axis.text.x = element_text(size=15), 
+        axis.text.y = element_text(size=15),
+        axis.title.x = element_text(size = 15, face = "bold", vjust = -0.5),
+        axis.title.y = element_text(size = 15, face = "bold", vjust = 1.5)) +
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 16)) +
+  guides(fill = guide_legend(title = "Title")) +
+```
+
+```{r}
+ggsave("plumbing.png", width = 16.667, height = 9.375, dpi = "screen")
 ```
 
