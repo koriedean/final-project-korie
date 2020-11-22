@@ -1,0 +1,203 @@
+---
+title: "Older Data"
+output: html_notebook
+---
+```{r}
+#Census key
+Sys.setenv(CENSUS_KEY="f8926d2beb514da70fdcd1abdac3eab3c261b34a")
+readRenviron("~/.Renviron")
+Sys.getenv("CENSUS_KEY")
+
+#Libraries
+library(tidyverse)
+library(tidycensus)
+library(dplyr)
+library(janitor)
+library(readxl)
+```
+
+**Notes:
+-Census started askng about plumbing in 1940.
+-Originally asked about in the decennial
+
+```{r}
+#Statewide 2014-2018 ACS housing data (for occupied units only)
+vars2018 <- load_variables(2018, "acs5", cache = TRUE)
+
+acs2018 <- get_acs(state = "NC",
+                   geography = "state",
+                   variables = c(c(totalcomplete = "B25048_002"), c(totalincomplete = "B25048_003")),
+                   geometry = TRUE)
+
+#Assorting data cleaning
+acs2018 <- acs2018 %>%
+  spread(variable, estimate)
+
+acs2018[is.na(acs2018)] <- 3906053
+
+acs2018 <- acs2018 %>%
+  spread(moe, moe)
+
+acs2018[is.na(acs2018)] <- 8696
+
+acs2018 <- acs2018[1,]
+
+names(acs2018)[names(acs2018) == "NAME"] <- "state"
+names(acs2018)[names(acs2018) == "858"] <- "moeincomplete"
+names(acs2018)[names(acs2018) == "8696"] <- "moecomplete"
+```
+
+**Plumbing questions were transferred from decennial to ACS in 2005
+```{r}
+#Statewide 2005-2009 ACS housing data
+#No margin of error, does has standard error
+acs2005 <- read_csv("acs2005.csv")
+
+why <- acs2005 %>%
+  select(Geo_FIPS, Geo_NAME, ACS09_5yr_B25048001, ACS09_5yr_B25048002, ACS09_5yr_B25048003, ACS09_5yr_B25048001s, ACS09_5yr_B25048002s, ACS09_5yr_B25048003s)
+
+names(why)[names(why) == "Geo_NAME"] <- "state"
+names(why)[names(why) == "Geo_FIPS"] <- "GEOID"
+names(why)[names(why) == "ACS09_5yr_B25048001"] <- "total"
+names(why)[names(why) == "ACS09_5yr_B25048002"] <- "totalcomplete"
+names(why)[names(why) == "ACS09_5yr_B25048003"] <- "totalincomplete"
+names(why)[names(why) == "ACS09_5yr_B25048001s"] <- "totalse"
+names(why)[names(why) == "ACS09_5yr_B25048002s"] <- "completese"
+names(why)[names(why) == "ACS09_5yr_B25048003s"] <- "incompletese"
+```
+
+```{r}
+str(why)
+str(acs2018)
+
+#Change from 2005-2009 ACS and 2014-2018 ACS
+diffoverallacs <- (acs2018$totalcomplete + acs2018$totalincomplete) - why$total
+#Occupied housing units increased by 376,790
+
+diffcompleteacs <- acs2018$totalcomplete - why$totalcomplete
+#Total homes with complete plumbing increased by 379,554 units
+
+diffincompleteacs <- acs2018$totalincomplete - why$totalincomplete
+#Total homes with incomplete plumbing decreased by 2,764
+
+pctchangetotalacs <- (((acs2018$totalcomplete + acs2018$totalincomplete) - why$total) / why$total) * 100
+#Percentage of total homes increased by 10.64 percent
+
+pctchangecompleteacs <- ((acs2018$totalcomplete - why$totalcomplete) / why$totalcomplete) * 100
+#Percentage of homes with complete plumbing increased by 10.76 percent
+
+pctchangeincompleteacs <- ((acs2018$totalincomplete - why$totalincomplete) / why$totalincomplete) * 100
+#Percentage of homes with incomplete plumbing decreased by -18.06 percent
+```
+
+```{r}
+#Most recent decennial: 2010. But the issue is that the census had already switched plumbing over to the ACS. So the most recent decennial with plumbing data is 2010
+#No margin of error
+
+dec2000 <- read_csv("dec2000.csv")
+dec2000 <- dec2000 %>%
+  select(Geo_NAME, Geo_FIPS, SF3_H047001, SF3_H047002, SF3_H047003)
+
+names(dec2000)[names(dec2000) == "Geo_NAME"] <- "state"
+names(dec2000)[names(dec2000) == "Geo_FIPS"] <- "GEOID"
+names(dec2000)[names(dec2000) == "SF3_H047001"] <- "total"
+names(dec2000)[names(dec2000) == "SF3_H047002"] <- "totalcomplete"
+names(dec2000)[names(dec2000) == "SF3_H047003"] <- "totalincomplete"
+```
+
+https://www2.census.gov/programs-surveys/decennial/tables/time-series/coh-plumbing/plumbing-tab.txt
+
+```{r}
+#1940-1990 plumbing facilities table
+#No margin of error
+historicalplumbing <- read.delim("plumbing-tab.txt")
+glimpse(historicalplumbing)
+
+#That is the worst freaking data. Extensive cleaning to follow.
+historicalplumbing <- historicalplumbing[c(115:173),]
+historicalplumbing <- historicalplumbing[c(1:5, 42)]
+
+#Ok I'm trying with a different spreadsheet
+dec1940 <- read_xlsx("NCPLUMBING.xlsx")
+names(dec1940)[names(dec1940) == "Complete plumbing facilities"] <- "totalcomplete"
+names(dec1940)[names(dec1940) == "Incomplete plumbing facilities"] <- "totalincomplete"
+names(dec1940)[names(dec1940) == "State"] <- "state"
+```
+
+```{r}
+#Change from 1940 decennial and 2000 decennial
+diffoveralldec <- dec2000$total - (dec1940$totalcomplete + dec1940$totalincomplete)
+#Total housing units increased by 2,749,324
+
+diffcompletedec <- dec2000$totalcomplete - dec1940$totalcomplete
+#Number of houses with complete plumbing increased 3,303,182
+
+diffincompletedec <- dec2000$totalincomplete - dec1940$totalincomplete
+#Number of houses with incomplete plumbing decreased 553,858
+
+pctchangeoveralldec <- ((dec2000$total - (dec1940$totalcomplete + dec1940$totalincomplete)) / (dec1940$totalcomplete + dec1940$totalincomplete)) * 100
+#Total housing units increased by 354.92 percent
+
+pctchangecompletedec <- ((dec2000$totalcomplete - dec1940$totalcomplete) / dec1940$totalcomplete) * 100
+#Total homes with complete plumbing increased by 1798.688 percent
+
+pctchangeincompletedec <- ((dec2000$totalincomplete - dec1940$totalincomplete) / dec1940$totalincomplete) * 100
+#Number of homes with incomplete plumbing decreased by 93.72 percent
+```
+
+```{r}
+#Comparing 1940 decennial to 2018 ACS. Not a perfect comparision
+
+bothoveralldiff <- (acs2018$totalcomplete + acs2018$totalincomplete) - (dec1940$totalcomplete + dec1940$totalincomplete)
+#Total housing units increased by 3,143,977
+
+bothcompletediff <- acs2018$totalcomplete - dec1940$totalcomplete
+#Total housing units with complete plumbing increased by 3,722,409
+
+bothincompletediff <- acs2018$totalincomplete - dec1940$totalincomplete
+#Total housing units with incomplete plumbing decreased by 578,432
+
+bothpctoverall <- (((acs2018$totalcomplete + acs2018$totalincomplete) - (dec1940$totalcomplete + dec1940$totalincomplete)) / (dec1940$totalcomplete + dec1940$totalincomplete)) * 100
+#Housing units increased 405.8735 percent
+
+bothpctcomplete <- ((acs2018$totalcomplete - dec1940$totalcomplete) / dec1940$totalcomplete) * 100
+#Housing units with complete plumbing increased 2026.97 percent
+
+bothpctincomplete <- ((acs2018$totalincomplete - dec1940$totalincomplete) / dec1940$totalincomplete) * 100
+#Housing units with incomplete plumbing decreased 97.88 percent
+```
+
+```{r}
+#The first housing code in Charlotte was in 1968. Might be useful to compare the 1970 decennial to the 2018 ACS then
+
+#Unfortunately the 1970 decennial is also very messy data, so I'm making my own dataframe.
+dec1970 <- data.frame("state" = "North Carolina", "totalcomplete" = 1365784, "totalincomplete" = 252319, "percent" = 15.6)
+dec1970 <- dec1970 %>%
+  mutate(
+    total = totalincomplete + totalcomplete
+  )
+
+codetotaldiff <- (acs2018$totalcomplete + acs2018$totalincomplete) - dec1970$total
+codetotaldiff
+#Housing units increased by 2,300,494
+
+codecompletediff <- acs2018$totalcomplete - dec1970$totalcomplete
+codecompletediff
+#Housing units with complete plumbing increased by 2,540,269
+
+codeincompletediff <- acs2018$totalincomplete - dec1970$totalincomplete
+codeincompletediff
+#Housing units with incomplete plumbing decreased by 239,775
+
+codepcttotal <- (((acs2018$totalcomplete + acs2018$totalincomplete) - dec1970$total) / dec1970$total) * 100
+codepcttotal
+#Total housing units increased by 142.17 percent
+
+codepctcomplete <- ((acs2018$totalcomplete - dec1970$totalcomplete) / dec1970$totalcomplete) * 100
+codepctcomplete
+#Total housing units with complete plumbing increased by 185.99 percent
+
+codepctincomplete <- ((acs2018$totalincomplete - dec1970$totalincomplete) / dec1970$totalincomplete) * 100
+codepctincomplete
+#Total housing units with incomplete plumbing decreased by 95.02 percent
+```
