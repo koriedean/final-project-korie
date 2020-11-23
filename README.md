@@ -1,7 +1,7 @@
 # Inadequate Plumbing in North Carolina
-MEJO390 Final Project
 
 *Created and reported by Korie Dean and Taylor Buck*
+MEJO390 Final Project
 
 ## Project goal
 
