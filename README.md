@@ -54,9 +54,6 @@ Census data used included:
   
   *Accessed via census.gov*
   
-### View interactive maps
-will ~potentially~ add in a bit if I figure it out
-  
 ## Technical
 
 An outline of the basic project structure is available at https://github.com/associatedpress/cookiecutter-r-project
