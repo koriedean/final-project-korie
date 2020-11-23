@@ -28,23 +28,23 @@ Census data used included:
 
   2018 5-year American Community Survey - Table B25048, NC county-level
   
-    Accessed via Census Reporter
+  *Accessed via Census Reporter*
   
   2018 5-year American Community Survey - Table B25048, NC tract-level
   
-    Accessed via Census Reporter
+  *Accessed via Census Reporter*
   
   2013 5-year American Community Survey - Table B25048, NC county-level
   
-    Accessed via Census Reporter
+  *Accessed via Census Reporter*
   
   2013 5-year American Community Survey - Table B25048, NC tract-level
   
-    Accessed via Census Reporter
+  *Accessed via Census Reporter*
   
   2010 Decennial Census of Housing - Table H134, NC county-level
   
-    Accessed via Social Explorer
+  *Accessed via Social Explorer*
   
   1970 Decennial Census of Housing - Table H134, NC county-level
   
