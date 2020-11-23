@@ -201,3 +201,23 @@ codepctincomplete <- ((acs2018$totalincomplete - dec1970$totalincomplete) / dec1
 codepctincomplete
 #Total housing units with incomplete plumbing decreased by 95.02 percent
 ```
+
+```{r}
+#Using dataframes from the LeafletMaps.Rmd to compare Mecklenburg and Rutherford County.
+meckold <- dec1970county %>%
+  filter(Geo_NAME == "Mecklenburg County")
+
+mecknew <- changeplumbing %>%
+  filter(County.x == "Mecklenburg County, North Carolina")
+
+meckpctchange <- ((meckold$incomplete - mecknew$IncompletePlumbing2018) / mecknew$IncompletePlumbing2018) * 100 #Decreased by 53.40 percent
+
+ruthold <- dec1970county %>%
+  filter(Geo_NAME == "Rutherford County")
+
+ruthnew <- changeplumbing %>%
+  filter(County.x == "Rutherford County, North Carolina")
+
+ruthpctchange <- ((ruthold$incomplete - ruthnew$IncompletePlumbing2018) / ruthnew$IncompletePlumbing2018)
+```
+
