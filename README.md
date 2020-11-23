@@ -1,10 +1,11 @@
-# MEJO390 Final Project - Inadequate Plumbing in North Carolina
+# Inadequate Plumbing in North Carolina
+# MEJO390 Final Project
 
 *Created and reported by Korie Dean and Taylor Buck*
 
 ## Project goal
 
-The goal of this project was to localize nationwide data on inadequate plumbing to North Carolina and determine what actions can be taken to address the issue at the county and state levels. The story analyzes the number of homes in North Carolina without adequate plumbing using data from a variety of sources, including Kaiser Health News, the American Community Survey and Census data at the state, county and tract levels.
+The goal of this project was to localize nationwide data on inadequate plumbing to North Carolina and determine what actions can be taken to address the issue at the county and state levels. The story analyzes the number of homes in North Carolina without adequate plumbing using data from a variety of sources, including Kaiser Health News, the American Community Survey and the Decennial survey data at the state, county and tract levels.
 
 ## Project notes
 
@@ -17,11 +18,25 @@ Taylor Buck: tmaylorb@live.unc.edu
 ### Data sources
 Data is from:
   Kaiser Health News story: https://khn.org/news/millions-stuck-at-home-with-no-plumbing-kitchen-or-space-to-stay-safe/
-  2018 5-year American Community Survey - Table B25048, NC county-level
-  2018 5-year American Community Survey - Table B25048, NC tract-level
-  2013 5-year American Community Survey - Table B25048, NC county-level
-  2013 5-year American Community Survey - Table B25048, NC tract-level
 
+Census data used included:
+  2018 5-year American Community Survey - Table B25048, NC county-level
+    Accessed via Census Reporter
+  2018 5-year American Community Survey - Table B25048, NC tract-level
+    Accessed via Census Reporter
+  2013 5-year American Community Survey - Table B25048, NC county-level
+    Accessed via Census Reporter
+  2013 5-year American Community Survey - Table B25048, NC tract-level
+    Accessed via Census Reporter
+  2010 Decennial Census of Housing - Table H134, NC county-level
+    Accessed via Social Explorer
+  1970 Decennial Census of Housing - Table H134, NC county-level
+    Accessed via Social Explorer
+  1940 Decennial Census of Housing, accessed via census.gov
+  
+### View interactive maps
+will ~potentially~ add in a bit if I figure it out
+  
 ## Technical
 
 An outline of the basic project structure is available at https://github.com/associatedpress/cookiecutter-r-project
@@ -36,4 +51,4 @@ Open `new-project.Rproj` in RStudio.
 
 ## Data notes
 
-*Add important caveats, limitations, and source contact info here.*
+*Questions regarding plumbing conditions were first included in the 1940 Decennial Census. In 2005, questions regarding plumbing were switched to the American Community Survey. At times, decennial data is necessarily compared to ACS data in order to make comparisions across time.*
