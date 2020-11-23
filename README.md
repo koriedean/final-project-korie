@@ -1,12 +1,10 @@
 # MEJO390 Final Project - Inadequate Plumbing in North Carolina
 
-This story analyzes the amount of homes in North Carolina without adequate plumbing using data from Kaiser Health News and statewide, county- and tract-level data from the American Community Survey and the decennial Census.
-
 *Created and reported by Korie Dean and Taylor Buck*
 
 ## Project goal
 
-The goal of this project was to localize nationwide data on inadequate plumbing.
+The goal of this project was to localize nationwide data on inadequate plumbing to North Carolina and determine what actions can be taken to address the issue at the county and state levels. The story analyzes the number of homes in North Carolina without adequate plumbing using data from a variety of sources, including Kaiser Health News and Census data at the state, county and tract levels.
 
 ## Project notes
 
