@@ -675,12 +675,12 @@ plot8_data <- st_as_sf(plot8_data)
 str(plot8_data)
 
 title8 <- tags$div(
-  titlehtml, HTML("How did the percentage of homes with insufficient plumbing changes between 1970 and 2018 in NC's counties?")
+  titlehtml, HTML("How did the percentage of homes with inadequate plumbing change between 1970 and 2018?")
 )
 
-leaflet() %>%
+overallpctchange <- leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
-  setView(-79, 36, zoom = 6) %>%
+  setView(-78.2, 34.7, zoom = 6) %>%
   addPolygons(
     data = plot8_data,
     stroke = TRUE,
@@ -697,9 +697,13 @@ leaflet() %>%
             labels = c("1,300 - 1,100%", "1,100 - 900%", "900 - 700%", "700 - 500%", "500 - 300%"),
             position = "bottomright",
             opacity = 1,
-            title = "Percentage change of homes<br />with insufficient plumbing") %>%
-  addControl(title8, position = "topright", className = "map=title")
-  
+            title = "Percentage decrease of homes<br />with insufficient plumbing") %>%
+  addControl(title8, position = "topright", className = "map=title") %>%
+  addSearchGoogle()
+
+overallpctchange
+
+saveWidget(overallpctchange, "overallpctchange.html")
 ```
 
 ```{r}
@@ -723,9 +727,9 @@ title9 <- tags$div(
 
 popup9 <- paste0("In the ", "<strong>", plot8_data$group, "</strong> region, there were ", "<strong>", plot8_data$popupnum, "</strong> homes with insufficient plumbing in 2018.")
   
-leaflet() %>%
+rawnumbers <- leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
-  setView(-79, 36, zoom = 6) %>%
+  setView(-78.2, 34.7, zoom = 6) %>%
   addPolygons(
     data = plot8_data,
     stroke = TRUE,
@@ -743,8 +747,12 @@ leaflet() %>%
             position = "bottomright",
             title = "Number of homes with<br />insufficient plumbing in 2018",
             opacity = 1) %>%
-  addControl(title9, position = "topright", className = "map=title")
+  addControl(title9, position = "topright", className = "map=title") %>%
+  addSearchGoogle()
 
+rawnumbers
+
+saveWidget(rawnumbers, "rawnumbers.html")
 ```
 
 ```{r}
@@ -809,9 +817,9 @@ max(plot10_data$pctincomplete) #0.46
 max(plot10_data$pctincomplete) - min(plot10_data$pctincomplete) #0.26
 (max(plot10_data$pctincomplete) - min(plot10_data$pctincomplete)) / 5 #0.05
 
-leaflet() %>%
+pctoverall <- leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
-  setView(-79, 36, zoom = 6) %>%
+  setView(-78.2, 34.7, zoom = 6) %>%
   addPolygons(
     data = plot10_data,
     stroke = TRUE,
@@ -829,7 +837,12 @@ leaflet() %>%
             position = "bottomright",
             title = "Percentage of homes with <br /> insufficient plumbing in 2018",
             opacity = 1) %>%
-  addControl(title10, position = "topright", className = "map=title")
+  addControl(title10, position = "topright", className = "map=title") %>%
+  addSearchGoogle()
+
+pctoverall
+
+saveWidget(pctoverall, "pctoverall.html")
 ```
 
 ```{r}
@@ -861,14 +874,14 @@ str(codes)
 codes <- st_as_sf(codes)
 
 palette11 <- colorNumeric(c("#31A354", "#bae4b3"), domain = codes$code)
-popup11 <- paste0("<strong>", codes$County)
+popup11 <- paste0("<strong>", codes$County, "</strong><br />", case_when(codes$code == "FALSE" ~ "No minimum housing code", codes$code == "TRUE" ~ "Has a minimum housing code"))
 title11 <- tags$div(
   titlehtml, HTML("Which North Carolina counties have a minimun housing code?")
 )
 
-leaflet() %>%
+codesmap <- leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
-  setView(-79, 36, zoom = 6) %>%
+  setView(-78.2, 34.7, zoom = 6) %>%
   addPolygons(
     data = codes,
     stroke = TRUE,
@@ -884,7 +897,12 @@ leaflet() %>%
             labels = c("Does not have a code", "Has a code"),
             position = "bottomright",
             opacity = 1) %>%
-  addControl(title11, position = "topright", className = "map=title")
+  addControl(title11, position = "topright", className = "map=title") %>%
+  addSearchGoogle()
+
+codesmap
+
+saveWidget(codesmap, "codesmap.html")
 ```
 
 ```{r}
@@ -937,7 +955,7 @@ southcentral <- plot11_data$region[9]
 southeast <- plot11_data$region[10]
 western <- plot11_data$region[11]
 northcentral <- plot11_data$region[19]
-
+ 
 plot11_data <- plot11_data %>%
   mutate( group = case_when(region %in% piedmonttriad ~ 'Piedmont Triad',
                    region %in% northwest ~ 'Northwest',
@@ -1042,9 +1060,9 @@ title12 <- tags$div(
   titlehtml, HTML("How did the percentage of homes with insufficient plumbing change between 1970 and 2018 <br /> in counties with minimum housing codes compared to counties without?")
 )
 
-leaflet() %>%
+pctwithvwithout <- leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
-  setView(-79, 36, zoom = 6) %>%
+  setView(-78.2, 34.7, zoom = 6) %>%
   addPolygons(
     data = plot10_data,
     stroke = 1,
@@ -1068,11 +1086,16 @@ leaflet() %>%
   ) %>%
   addLegend(
     colors = c("#005a32", "#238b45", "#41ab5d", "#74c476", "#a1d99b", "#c7e9c0", "#e5f5e0", "f7fcf5"),
-    label = c("4,000 - 3,300%", "3,300 - 2,600%", "2,600 - 1,900%", "1,900 - 1,200", "1,200 - ", "Ds,", "s", "Sa"),
+    label = c("4,000 - 3,500%", "3,500 - 3,00%", "3,000 - 2,500%", "2,500 - 2,000", "2,000 - 1,500", "1,500 - 1,000,", "1,000 - 5,000", "5,000 - 0"),
     position = "bottomright",
     opacity = 1
   ) %>%
-  addControl(title12, position = "topright", className = "map=title")
+  addControl(title12, position = "topright", className = "map=title") %>%
+  addSearchGoogle()
+
+pctwithvwithout
+
+saveWidget(pctwithvwithout, "pctwithvwithout.html")
 ```
 
 ```{r}
@@ -1090,7 +1113,7 @@ trythisone <- melt(forgraph, id = "group.x")
 trythisone <- trythisone[c(17:32),]
 
 keeptrying <- data.frame(group = c("North Central", "North Central", "Northeast", "Northeast", "Northwest", "Northwest", "Piedmont Triad", "Piedmont Triad", "South Central", "South Central", "Southeast", "Southeast", "Southwest", "Southwest", "Western", "Western"),
-                         variable = c("TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "FALSE"),
+                         variable = c("With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes"),
                          value = c(407.15, 1045.06, 1182.52, 4003.57, 943.91, 630.50, 501.24, 302.81, 1786.79, 668.55, 673.16, 429.17, 938.25, 365.21, 711.07, 645.81))
 
 #variable = c("With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes", "With codes", "Without codes"),
@@ -1108,7 +1131,7 @@ ggplot() +
     stat = "identity"
   ) +
   scale_fill_manual(
-    breaks = c("TRUE", "FALSE"),
+    breaks = c("With codes", "Without codes"),
     values = c("#41ab5d", "#c7e9c0")
   ) +
   labs(title = "What impact do minimum housing codes have?", 
@@ -1124,8 +1147,11 @@ ggplot() +
         axis.title.x = element_text(size = 15, face = "bold", vjust = -0.5),
         axis.title.y = element_text(size = 15, face = "bold", vjust = 1.5)) +
   theme(legend.position = "bottom",
-        legend.title = element_text(size = 16)) +
-  guides(fill = guide_legend(title = "Title")) +
+        legend.title = element_text(size = 16),
+        legend.title.align = 0.5,
+        legend.text = element_text(size = 15))+
+  guides(fill = guide_legend(title = "Minimum housing codes",
+                             title.position = "top"))
 ```
 
 ```{r}
