@@ -1,8 +1,8 @@
-# MEJO390 Final Project - Extreme Housing Conditions in N.C.
+# MEJO390 Final Project - Inadequate Plumbing in North Carolina
 
-This story analyzes the rates of extreme housing conditions (inadequate plumbing/kitchen facilities and overcrowding) in North Carolina using data from Kaiser Health News and county- and tract-level data from the American Community Survey (2018 5-year and 2013 5-year).
+This story analyzes the amount of homes in North Carolina without adequate plumbing using data from Kaiser Health News and statewide, county- and tract-level data from the American Community Survey and the decennial Census.
 
-*Created and reported by Korie Dean*
+*Created and reported by Korie Dean and Taylor Buck*
 
 ## Project goal
 
@@ -13,6 +13,8 @@ The goal of this project was to localize nationwide data on inadequate plumbing.
 ### Staff involved
 
 Korie Dean: korie@live.unc.edu
+
+Taylor Buck: tmaylorb@live.unc.edu
 
 [Responsibility matrix](url-to-responsibility matrix)
 
@@ -27,8 +29,6 @@ Data is from:
   2013 5-year American Community Survey - Table B25048, NC tract-level
 
 ## Technical
-
-*TK: Instructions on how to bootstrap project, run ETL processes, etc.*
 
 An outline of the basic project structure is available at https://github.com/associatedpress/cookiecutter-r-project
 
