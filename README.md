@@ -4,7 +4,7 @@
 
 ## Project goal
 
-The goal of this project was to localize nationwide data on inadequate plumbing to North Carolina and determine what actions can be taken to address the issue at the county and state levels. The story analyzes the number of homes in North Carolina without adequate plumbing using data from a variety of sources, including Kaiser Health News and Census data at the state, county and tract levels.
+The goal of this project was to localize nationwide data on inadequate plumbing to North Carolina and determine what actions can be taken to address the issue at the county and state levels. The story analyzes the number of homes in North Carolina without adequate plumbing using data from a variety of sources, including Kaiser Health News, the American Community Survey and Census data at the state, county and tract levels.
 
 ## Project notes
 
@@ -13,10 +13,6 @@ The goal of this project was to localize nationwide data on inadequate plumbing 
 Korie Dean: korie@live.unc.edu
 
 Taylor Buck: tmaylorb@live.unc.edu
-
-[Responsibility matrix](url-to-responsibility matrix)
-
-[HIRUFF Q&A](url-to-hiruff)
 
 ### Data sources
 Data is from:
