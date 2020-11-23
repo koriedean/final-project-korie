@@ -1,0 +1,180 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+**HELPFUL LINKS:
+https://www.census.gov/content/dam/Census/library/publications/2020/acs/acs_pums_handbook_2020.pdf
+https://github.com/vincentpalacios/ACS-PUMS
+https://github.com/mihiriyer/vietnam-incomehealth/blob/master/Code_Data_Get.R
+https://github.com/ajdamico/asdfree/blob/master/07-acs.Rmd
+PUMS DATA DICTIONARY: https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/PUMS_Data_Dictionary_2014-2018.pdf
+  BATH: bathtub or shower
+  RWAT: Hot and cold running water
+  RWATPR: Running water
+  SINK: Sink with a faucet
+  TOIL: Flush toilet
+  PLM: Complete plumbing facilites
+  TEN: Tenure
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(leaflet)
+library(leaflet.extras)
+library(sf)
+```
+
+
+```{r}
+#Downloading in zipped PUMS 5-year housing data for NC (2018-2013)
+unzip("csv_hnc.zip")
+file.rename("psam_h37.csv", "2018hnc_5yr.csv") #Just to help me remember what's what
+hnc2018 <- read.csv("2018hnc_5yr.csv")
+```
+
+```{r}
+#New dataframe with just the variables I want
+tidyhnc <- hnc2018 %>%
+  select(SERIALNO, BATH, RWAT, RWATPR, SINK, TOIL, PLM, TEN, WGTP, PUMA) %>%
+  na.omit(TEN) #Pulling out all the rows with an NA in the Tenure column since we don't know if those are owner occupied or not. Takes away around 50,000 records
+```
+
+```{r}
+#Calculating rented homes without "complete plumbing facilities"
+#In TEN column: 3 = Rented
+#In PLM column: 1 = Yes, 2 = NO
+
+rentinsufplumbing <- tidyhnc %>%
+  filter(TEN == 3 | TEN == 4) %>%
+  filter(PLM == 2)
+count(rentinsufplumbing, wt = WGTP)
+#5916 rented homes without complete plumbing facilities
+```
+
+```{r}
+#Calculating owned homes without complete plumbing facilities
+#In TEN column: 1: Owned w mortgage, 2 = Owned freed
+
+owninsufplumbing <- tidyhnc %>%
+  filter(TEN == 1 | TEN == 2) %>%
+  filter(PLM == 2)
+count(owninsufplumbing, wt = WGTP)
+#6285 owned homes without complete plumbing facilities
+```
+
+```{r}
+#In TEN column: 1: Owned w mortgage, 2 = Owned freed, 3 = Rented, 4 = Occupied without payment of rent
+#In PLM column: 1 = Yes, 2 = NO
+alltogether <- tidyhnc %>%
+  group_by(TEN, PLM) %>%
+  count(wt = WGTP)
+```
+
+
+```{r}
+#Downloading in zipped PUMS 5-year person data for NC
+unzip("csv_pnc.zip")
+file.rename("psam_p37.csv", "2018pnc_5yr.csv")
+pnc2018 <- read.csv("2018pnc_5yr.csv")
+```
+
+```{r}
+#Mapping
+#install.packages("acs")
+library(acs)
+library(tigris)
+library(stringr)
+library(leaflet)
+library(htmlwidgets)
+library(tmap)
+library(tidycensus)
+
+pumas <- pumas(state = "NC", cb = TRUE)
+
+census_api_key("21582ceae3532a9ad3b241a4886d94425d93157a")
+geo <- geo.make(state = c('NC'),
+                puma = '*') #Pulling available PUMAs
+```
+
+```{r}
+opums <- owninsufplumbing %>%
+  group_by(PUMA) %>%
+  summarise(
+    totalown = sum(WGTP)
+  )
+sum(opums$totalown)
+
+rpums <- rentinsufplumbing %>%
+  group_by(PUMA) %>%
+  summarise(
+    totalrent = sum(WGTP)
+  )
+sum(rpums$totalrent)
+
+allpums <- left_join(rpums, opums)
+allpums <- allpums %>%
+  mutate_all(funs(ifelse(is.na(.),0,.)))
+sum(allpums$totalown + allpums$totalrent)
+
+str(pumas)
+str_length(pumas$PUMACE10)
+x <- c("03108","03001","04300")
+x
+x <- str_sub(x, 2)
+x
+
+pumas <- pumas %>%
+  arrange(PUMACE10)
+pumas$PUMACE10 <- str_sub(pumas$PUMACE10, 2)
+y <- pumas[c(1:9),2] 
+y$PUMACE10 <- str_sub(y$PUMACE10,2)
+pumas[c(1:9),2] <- y
+
+pumas$PUMACE10[pumas$PUMACE10 %in% allpums$PUMA]
+allpums$PUMA[allpums$PUMA %in% pumas$PUMACE10]
+pumas$PUMA[!(pumas$PUMA %in% allpums$PUMA)]
+allpums$PUMA[!(allpums$PUMA %in% pumas$PUMACE10)]
+
+names(pumas)
+names(pumas)[names(pumas) == "PUMACE10"] <- "PUMA"
+
+pumageo <- merge(allpums, pumas, by = "PUMA")
+```
+```{r}
+pumageo$total <- rowSums(pumageo[,2:3])
+
+palettex <- colorNumeric("Greens", domain = pumageo$total)
+
+popupx <- paste0("<strong>", pumageo$NAME10, "</strong>", " has ", pumageo$totalrent, " rented homes with insufficient plumbing and ", pumageo$totalown, " owner-owned homes with insufficient plumbing.")
+
+str(pumageo)
+
+pumageo <- st_as_sf(pumageo)
+
+str(pumageo)
+
+map <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-80, 36, zoom = 6.6) %>%
+  addPolygons(
+    data = pumageo,
+    fillColor = ~palettex(pumageo$total),
+    stroke = TRUE,
+    color = "black",
+    opacity = 1,
+    fillOpacity = 0.9,
+    weight = 0.2,
+    smoothFactor = 0.2,
+    popup = ~popupx,
+    highlightOptions = highlightOptions(color = "white", weight = 2, bringToFront = TRUE)
+  ) %>%
+  addLegend(pal = palettex,
+            values = pumageo$total,
+            position = "bottomright",
+            title = "Total Homes with<br />Incomplete Plumbing") %>%
+  addControl(title1, position = "topright", className = "map=title") %>%
+  addSearchGoogle()
+
+saveWidget(map, "pumamap.html")
+```
