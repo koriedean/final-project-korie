@@ -48,9 +48,11 @@ Census data used included:
   
   1970 Decennial Census of Housing - Table H134, NC county-level
   
-    Accessed via Social Explorer
+  *Accessed via Social Explorer*
   
-  1940 Decennial Census of Housing, accessed via census.gov
+  1940 Decennial Census of Housing
+  
+  *Accessed via census.gov*
   
 ### View interactive maps
 will ~potentially~ add in a bit if I figure it out
